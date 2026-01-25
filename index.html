@@ -1242,19 +1242,25 @@
                     } else {
                         // 2. Mouse Soltado (Por ESC o Alt-Tab)
                         
-                        // Verificamos si los elementos existen antes de comprobar sus clases
-                        // El operador "?." evita el crash si el elemento es null
                         const gameOverHidden = document.getElementById('game-over')?.classList.contains('hidden');
                         const victoryScreen = document.getElementById('victory-screen');
-                        // Si no existe la pantalla de victoria, asumimos que está oculta (true)
                         const victoryHidden = victoryScreen ? victoryScreen.classList.contains('hidden') : true;
                         
                         const mainMenuLayer = document.getElementById('main-menu-layer');
                         const mainMenuHidden = mainMenuLayer ? (mainMenuLayer.style.display === 'none') : true;
 
-                        // Solo pausamos si el juego estaba activo y no hay otras pantallas abiertas
                         if (isGameActive && gameOverHidden && victoryHidden && mainMenuHidden) {
                             isPaused = true;
+                            
+                            // --- FIX: RESETEAR INPUTS AL PAUSAR ---
+                            // Esto evita que el personaje siga caminando solo si pausaste mientras corrías
+                            keys.w = false; 
+                            keys.a = false; 
+                            keys.s = false; 
+                            keys.d = false;
+                            keys.shift = false;
+                            // ---------------------------------------
+
                             const pauseMenu = document.getElementById('pause-menu');
                             if(pauseMenu) pauseMenu.classList.remove('hidden');
                         }
