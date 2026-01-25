@@ -529,7 +529,8 @@
             SUJETO ELIMINADO EN NIVEL <span id="final-level" style="color: #fff">1</span>
         </div>
         
-        <button class="pause-btn" onclick="location.reload()">REINTENTAR MISIÓN</button>
+        <button class="pause-btn" id="btn-retry">REINTENTAR MISIÓN</button>
+        
         <button class="pause-btn" onclick="location.reload()">MENÚ PRINCIPAL</button>
     </div>
         
@@ -1259,17 +1260,61 @@
 
                 // --- CONECTAR SONIDOS A LOS BOTONES DEL MENÚ (CORREGIDO) ---
                 // Esto conecta los sonidos generados (osciladores) a los botones visuales
-                document.querySelectorAll('.menu-btn').forEach(btn => {
+                document.querySelectorAll('.menu-btn, .pause-btn').forEach(btn => {
+                    
+                    // Sonido al pasar el mouse por encima
                     btn.addEventListener('mouseenter', () => {
-                        playUISound('hover');
+                        // Verificamos que el contexto de audio exista antes de intentar reproducir
+                        if (menuAudioCtx || audioCtx) {
+                            playUISound('hover');
+                        }
                     });
+
+                    // Sonido al hacer click
                     btn.addEventListener('mousedown', () => {
-                        playUISound('click');
+                        if (menuAudioCtx || audioCtx) {
+                            playUISound('click');
+                        }
                     });
                 });
                 
                 // BORRA LAS LÍNEAS QUE DECÍAN "loadBase64Sound" O "...PEGA_AQUÍ..."
                 // ESAS LÍNEAS SON LAS QUE ROMPEN EL JUEGO.
+
+                // --- LÓGICA DE REINTENTAR (Reset Rápido) ---
+                const btnRetry = document.getElementById('btn-retry');
+                if (btnRetry) {
+                    btnRetry.addEventListener('click', () => {
+                        // 1. Ocultar pantalla de Game Over
+                        document.getElementById('game-over').classList.add('hidden');
+
+                        // 2. Resetear variables Vitales
+                        level = 1;         // Volver al nivel 1
+                        stamina = 100;     // Recuperar energía
+                        battery = 100;     // Batería llena
+                        batteryCount = 0;  // Resetear inventario
+                        
+                        // 3. Restaurar UI
+                        document.getElementById('stamina-bar').style.width = '100%';
+                        document.getElementById('battery-bar').style.width = '100%';
+                        document.getElementById('battery-count').innerText = '[0]';
+                        
+                        // Asegurarnos de que el HUD esté visible (a veces se oculta al morir)
+                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.remove('hidden'));
+
+                        // 4. Reactivar el motor del juego
+                        isGameActive = true;
+                        isPaused = false;
+                        
+                        // 5. Cargar el nivel de cero (Esto borra enemigos viejos y crea nuevos)
+                        loadLevel();
+
+                        // 6. Recapturar el mouse y reanudar audio
+                        document.body.requestPointerLock();
+                        if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+                    });
+                }
                 // -----------------------------
 
                 animate();
