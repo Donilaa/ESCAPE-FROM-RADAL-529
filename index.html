@@ -358,7 +358,13 @@
         }
 
         #battery-container { position: absolute; bottom: 55px; right: 30px; width: 200px; height: 15px; border: 2px solid #fff; background: #000; }
-        #battery-bar { width: 100%; height: 100%; background: #ffcc00; transition: width 0.1s; }
+        #battery-bar { 
+            width: 0%; /* Cambia esto de 100% a 0% */
+            height: 100%; 
+            background: #ffcc00; 
+            transition: width 0.2s linear;
+            /* ... resto de tu código ... */
+        }
         #battery-label { 
             position: absolute; 
             right: 245px; /* Ajustado para dejar espacio al borde */
@@ -580,6 +586,7 @@
         let battery = 100; const MAX_BATTERY = 100;
         let batteryCount = 0; // NUEVA VARIABLE
         let isFlashlightOn = true; let fPressed = false; 
+        let hasFlashlight = false; // El jugador empieza sin la linterna
         
         let isFirstPerson = false;
         let vPressed = false;
@@ -1067,7 +1074,7 @@
                     if(e.key === 'Shift') keys.shift = true;
 
                     // 3. Acciones
-                    if(k === 'r' && isGameActive) {
+                    if(k === 'r' && isGameActive && hasFlashlight) {
                         if(batteryCount > 0) {
                             if(battery >= 100) {
                                 showMessage("BATERÍA LLENA");
@@ -1162,7 +1169,8 @@
                         document.getElementById('main-menu-layer').style.display = 'none';
                         
                         // Mostramos el HUD del juego
-                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.remove('hidden'));
+                        document.querySelectorAll('#stamina-container, #stamina-label, .hud-label:not(#battery-label)').forEach(el => el.classList.remove('hidden'));
+document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.classList.remove('hidden'));
                         
                         // Capturamos puntero y audio
                         try { document.body.requestPointerLock(); } catch(e){}
@@ -1339,7 +1347,13 @@
                         document.getElementById('battery-count').innerText = '[0]';
                         
                         // Asegurarnos de que el HUD esté visible (a veces se oculta al morir)
-                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.remove('hidden'));
+                        document.querySelectorAll('.hud-box, #stamina-container, #stamina-label').forEach(el => el.classList.remove('hidden'));
+                        // Y nos aseguramos de ocultar la batería por si la tenía antes de morir
+                        document.getElementById('battery-label').classList.add('hidden');
+                        document.getElementById('battery-container').classList.add('hidden');
+                        hasFlashlight = false; // Resetear posesión al morir
+                        isFlashlightOn = false; // Asegurar que empiece apagada
+                        if(flashModel) flashModel.visible = false; // Ocultar el modelo de la mano
 
                         // 4. Reactivar el motor del juego
                         isGameActive = true;
@@ -1542,31 +1556,94 @@
             scene.add(grp); objects.push(grp);
         }
 
+        // Función para crear el modelo visual de la linterna en el suelo
+        function crearModeloLinternaSuelo() {
+            const grupo = new THREE.Group();
+            
+            // Cuerpo metálico (Cilindro gris oscuro)
+            const cuerpo = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.1, 0.4, 8),
+                new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 })
+            );
+            cuerpo.rotation.z = Math.PI / 2; // Acostada en el suelo
+            grupo.add(cuerpo);
+
+            // Cabezal (Cilindro un poco más ancho)
+            const cabeza = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.1, 0.15, 8),
+                new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 })
+            );
+            cabeza.rotation.z = Math.PI / 2;
+            cabeza.position.x = -0.2; // Movida al extremo
+            grupo.add(cabeza);
+
+            // El "Lente" que brilla (Para que sea llamativa)
+            const lente = new THREE.Mesh(
+                new THREE.CircleGeometry(0.12, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffff00 }) // Amarillo brillante
+            );
+            lente.rotation.y = -Math.PI / 2;
+            lente.position.x = -0.28;
+            grupo.add(lente);
+
+            // Luz de apoyo para que se vea desde lejos
+            const luz = new THREE.PointLight(0xffff00, 1.5, 3);
+            luz.position.set(-0.3, 0.5, 0);
+            grupo.add(luz);
+
+            return grupo;
+        }
+
         function spawnLevelContent() {
             let colors = ['red']; if(level >= 2) colors.push('blue'); if(level >= 4) colors.push('green');
             const exitColor = colors[Math.floor(Math.random()*colors.length)];
             
-            let wC = []; // Candidatos de Pared (Para Puertas)
-            let fC = []; // Candidatos de Suelo (Para Items)
+            let wC = []; // Candidatos de Pared
+            let fC = []; // Candidatos de Suelo
 
-            // 1. Clasificar celdas
+            // 1. PRIMERO: Clasificar celdas (Llenar fC y wC)
             for(let x=1; x<mazeSize-1; x++) { 
                 for(let z=1; z<mazeSize-1; z++) {
                     if(mazeGrid[x][z] === 0) { 
-                        // Es suelo, candidato para items si está lejos del inicio
                         if(x > 3 || z > 3) fC.push({x,z}); 
                     }
                     else if(mazeGrid[x][z] === 1) { 
-                        // Es pared, verificar si sirve para puerta
                         let n = 0; 
                         if(mazeGrid[x+1][z]===0) n++; 
                         if(mazeGrid[x-1][z]===0) n++; 
                         if(mazeGrid[x][z+1]===0) n++; 
                         if(mazeGrid[x][z-1]===0) n++; 
-                        
-                        // REGLA ESTRICTA: Solo paredes con 1 lado libre (se ven mejor)
                         if(n === 1 && (x>2 || z>2)) wC.push({x,z}); 
                     }
+                }
+            }
+
+            // --- NUEVA LÓGICA DE LINTERNA MEJORADA ---
+            if (level === 1) {
+                // Desordenamos los candidatos de suelo para que no elija siempre el primero que encuentra
+                fC.sort(() => Math.random() - 0.5);
+
+                // Ahora buscamos la posición en el rango ampliado
+                let flashSpawn = fC.find(p => (p.x + p.z > 3) && (p.x + p.z < 12));
+                
+                if (!flashSpawn && fC.length > 0) flashSpawn = fC[0];
+
+                if (flashSpawn) {
+                    // Usamos la función de modelo real que creamos arriba
+                    const itemFlash = crearModeloLinternaSuelo();
+                    
+                    // La elevamos un poquito del suelo para que no se "entierre"
+                    itemFlash.position.set(flashSpawn.x * WALL_SIZE, 0.2, flashSpawn.z * WALL_SIZE);
+                    
+                    // Agregamos una animación simple de giro para que sea más llamativa
+                    itemFlash.onBeforeRender = function() {
+                        this.rotation.y += 0.02;
+                    };
+
+                    itemFlash.userData = { type: 'item_flashlight' };
+                    scene.add(itemFlash);
+                    objects.push(itemFlash);
+                    showMessage("BUSCA UNA FUENTE DE LUZ");
                 }
             }
 
@@ -1856,7 +1933,8 @@
             flashlight.position.set(0, 0, -0.1); flashlight.target.position.set(0, 0, -5); 
             flashModel.add(flashlight); flashModel.add(flashlight.target);
             playerPivot.add(flashModel); 
-
+            isFlashlightOn = false; 
+            flashModel.visible = false;
             player.position.set(1*WALL_SIZE, 0, 1*WALL_SIZE); scene.add(player);
         }
 
@@ -2113,7 +2191,11 @@
             lastTime = time;
             accumulator += Math.min(delta, 0.1);
 
-            if (keys.f && !fPressed) { isFlashlightOn = !isFlashlightOn; fPressed = true; playSound('click'); }
+            if (keys.f && !fPressed && hasFlashlight) { 
+                isFlashlightOn = !isFlashlightOn; 
+                fPressed = true; 
+                playSound('click'); 
+            }
             if (!keys.f) fPressed = false;
 
             if (keys.v && !vPressed) { 
@@ -2131,7 +2213,7 @@
             if (!keys.v) vPressed = false;
 
             // --- LÓGICA DE LINTERNA MEJORADA CON FLASHAZO ---
-            if (isFlashlightOn && battery > 0) {
+            if (isFlashlightOn && battery > 0 && hasFlashlight) {
                 battery -= delta * 2.5; 
 
                 // Si estamos en medio de un flashazo (tiempo actual < fin del flash)
@@ -2560,7 +2642,7 @@
                         playSound('scream');
                         document.getElementById('game-over').classList.remove('hidden');
                         document.getElementById('final-level').innerText = level;
-                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.add('hidden'));
+                        document.querySelectorAll('.hud-box, #stamina-container, #stamina-label').forEach(el => el.classList.remove('hidden'));
                         document.exitPointerLock();
                     }
                 }
@@ -2590,6 +2672,40 @@
                     objects.splice(i, 1);
                 }
                 
+                // --- LÓGICA PARA RECOGER LINTERNA ---
+                if(o.userData.type === 'item_flashlight' && d < 1.5) {
+                    playSound('item'); 
+                    hasFlashlight = true; 
+                    
+                    // 1. Calculamos la carga aleatoria
+                    battery = 30 + (Math.random() * 70);
+                    
+                    // 2. Quitamos la animación temporalmente para que no "baje" visualmente
+                    const batBar = document.getElementById('battery-bar');
+                    batBar.style.transition = 'none'; 
+                    
+                    // 3. Aplicamos el valor
+                    batBar.style.width = battery + '%';
+                    
+                    // 4. Mostramos el HUD
+                    document.getElementById('battery-label').classList.remove('hidden');
+                    document.getElementById('battery-container').classList.remove('hidden');
+
+                    // 5. Devolvemos la animación después de un instante para que los gastos futuros sí se vean fluidos
+                    setTimeout(() => {
+                        batBar.style.transition = 'width 0.2s linear';
+                    }, 50);
+
+                    isFlashlightOn = true;
+                    if(flashModel) flashModel.visible = true;
+                    if(flashlight) flashlight.intensity = 8.0;
+                    
+                    showMessage("LINTERNA RECOGIDA [F]");
+                    scene.remove(o); 
+                    objects.splice(i, 1);
+                }
+
+
                 // --- FIX APLICADO AQUÍ (LOGICA PUERTA) ---
                 if(o.userData.type === 'door') {
                     const dist = player.position.distanceTo(o.position);
