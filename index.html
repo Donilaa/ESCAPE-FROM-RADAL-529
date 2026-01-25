@@ -934,22 +934,30 @@
         }
 
         function stopMenuMusic() {
-            // 1. Cancelar cualquier nota futura
+            // 1. Cancelar notas futuras
             if (menuTimeout) {
                 clearTimeout(menuTimeout);
                 menuTimeout = null;
             }
 
-            // 2. CORTE AGRESIVO E INMEDIATO
+            // 2. CORTE SUAVE (Delay para permitir que suene el botón)
             if (menuAudioCtx) {
                 try {
-                    // Detenemos el contexto inmediatamente (nada de fade out lento que pueda fallar)
-                    menuAudioCtx.close().then(() => {
-                        menuAudioCtx = null;
-                        menuGainNode = null;
-                    });
+                    // Bajamos el volumen a 0 rápidamente para que la música no moleste
+                    if(menuGainNode) {
+                        menuGainNode.gain.setTargetAtTime(0, menuAudioCtx.currentTime, 0.1);
+                    }
+
+                    // Esperamos 500ms antes de desconectar todo (tiempo para el SFX del botón)
+                    setTimeout(() => {
+                        if(menuAudioCtx) {
+                            menuAudioCtx.close();
+                            menuAudioCtx = null;
+                            menuGainNode = null;
+                        }
+                    }, 500);
+                    
                 } catch(e) {
-                    // Si falla el cierre suave, forzamos null para que el recolector de basura se lo lleve
                     menuAudioCtx = null;
                 }
             }
@@ -1019,57 +1027,75 @@
 
                 window.addEventListener('resize', onResize);
                 // --- PEGAR ESTO DENTRO DE init() ---
-        
-        window.addEventListener('keydown', e => {
-            // Protección: Si el evento no tiene tecla, no hacemos nada (evita el error rojo)
-            if (!e.key) return; 
-            
-            const k = e.key.toLowerCase();
 
-            // 1. Controles de Movimiento (W, A, S, D)
-            if(keys.hasOwnProperty(k)) keys[k] = true;
-            if(e.key === 'Shift') keys.shift = true;
-
-            // 2. Control de Recarga (Tecla R)
-            if(k === 'r' && isGameActive) {
-                if(batteryCount > 0) {
-                    if(battery >= 100) {
-                        showMessage("BATERÍA LLENA");
-                    } else {
-                        batteryCount--; // Gastar pila del inventario
-                        battery = Math.min(100, battery + 50); // Recargar
-                        
-                        // Actualizar el texto en pantalla
-                        const batCounter = document.getElementById('battery-count');
-                        if(batCounter) batCounter.innerText = `[${batteryCount}]`;
-
-                        // Intentar reproducir sonido (ignora error si no existe el sonido 'reload')
-                        try { playSound('reload'); } catch(err) {} 
-                        
-                        showMessage("RECARGANDO...");
-                    }
-                } else {
-                    showMessage("NO TIENES PILAS");
-                    try { playSound('error'); } catch(err) {}
-                }
-            }
-            if(k === 'e') keys.e = true; // Detectar tecla E
-        });
-
-        // -----------------------------------
-                window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; if(e.key === 'Shift') keys.shift = false; if(keys.hasOwnProperty(k)) keys[k] = false;});
-                
-                document.addEventListener('mousedown', () => isMouseDown = true);
-                document.addEventListener('mouseup', () => isMouseDown = false);
+            // --- ARREGLO CRÍTICO: MOVIMIENTO DE CÁMARA ---
                 document.addEventListener('mousemove', (e) => {
-                    if(!isGameActive) return;
-                    if(document.pointerLockElement === document.body || isMouseDown) {
+                    // Solo movemos la cámara si el juego está activo, sin pausa y tenemos el control
+                    if (isGameActive && !isPaused && document.pointerLockElement === document.body) {
+                        
+                        // 1. Rotación Horizontal (Cuerpo del jugador)
                         player.rotation.y -= e.movementX * MOUSE_SENSITIVITY;
+
+                        // 2. Rotación Vertical (Cabeza/Pivote)
                         mousePitch -= e.movementY * MOUSE_SENSITIVITY;
-                        mousePitch = Math.max(-0.8, Math.min(0.8, mousePitch));
+                        
+                        // Limitamos para que no se rompa el cuello (Clamp)
+                        const limit = Math.PI / 2.2; 
+                        mousePitch = Math.max(-limit, Math.min(limit, mousePitch));
+                        
                         playerPivot.rotation.x = mousePitch;
                     }
-                   
+                });
+        
+        window.addEventListener('keydown', e => {
+                    if (!e.key) return; 
+
+                    // 1. LÓGICA ESCAPE (SOLO PAUSAR)
+                    // Nota: No intentamos "Resumir" con ESC porque los navegadores lo bloquean.
+                    // Para resumir, el jugador debe hacer CLICK o presionar "CONTINUAR".
+                    if (e.key === 'Escape') {
+                        // El navegador soltará el mouse automáticamente.
+                        // El evento 'pointerlockchange' (que ya tienes programado más abajo)
+                        // detectará esto y mostrará el menú de pausa.
+                        return; 
+                    }
+
+                    const k = e.key.toLowerCase();
+
+                    // 2. Movimiento
+                    if(keys.hasOwnProperty(k)) keys[k] = true;
+                    if(e.key === 'Shift') keys.shift = true;
+
+                    // 3. Acciones
+                    if(k === 'r' && isGameActive) {
+                        if(batteryCount > 0) {
+                            if(battery >= 100) {
+                                showMessage("BATERÍA LLENA");
+                            } else {
+                                batteryCount--; 
+                                battery = Math.min(100, battery + 50); 
+                                const batCounter = document.getElementById('battery-count');
+                                if(batCounter) batCounter.innerText = `[${batteryCount}]`;
+                                try { playSound('reload'); } catch(err) {} 
+                                showMessage("RECARGANDO...");
+                            }
+                        } else {
+                            showMessage("NO TIENES PILAS");
+                            try { playSound('error'); } catch(err) {}
+                        }
+                    }
+                    if(k === 'e') keys.e = true; 
+                    if(k === 'f') keys.f = true; 
+                    if(k === 'v') keys.v = true; 
+                });
+
+                // --- FIX CRÍTICO DEL KEYUP ---
+                window.addEventListener('keyup', e => { 
+                    const k = e.key.toLowerCase();
+                    // Antes aquí tenías una variable 'k' fantasma al final que rompía todo.
+                    // Esta versión está limpia:
+                    if(keys.hasOwnProperty(k)) keys[k] = false; 
+                    if(e.key === 'Shift') keys.shift = false; 
                 });
                 
 
@@ -1260,21 +1286,28 @@
 
                 // --- CONECTAR SONIDOS A LOS BOTONES DEL MENÚ (CORREGIDO) ---
                 // Esto conecta los sonidos generados (osciladores) a los botones visuales
+                // --- CONECTAR SONIDOS A LOS BOTONES (VERSIÓN FINAL BLINDADA) ---
                 document.querySelectorAll('.menu-btn, .pause-btn').forEach(btn => {
                     
-                    // Sonido al pasar el mouse por encima
                     btn.addEventListener('mouseenter', () => {
-                        // Verificamos que el contexto de audio exista antes de intentar reproducir
+                        // Solo suena si el audio ya está activo (no forzamos en hover para no asustar)
                         if (menuAudioCtx || audioCtx) {
                             playUISound('hover');
                         }
                     });
 
-                    // Sonido al hacer click
                     btn.addEventListener('mousedown', () => {
-                        if (menuAudioCtx || audioCtx) {
-                            playUISound('click');
+                        // 1. Si estamos en el menú y no hay audio aún, LO INICIAMOS AHORA
+                        // Esto arregla el "silencio del primer click"
+                        if (!isGameActive && !menuAudioCtx) {
+                            playMenuMusic();
                         }
+
+                        // 2. Ahora que seguro existe (o existirá en ms), reproducimos
+                        // Pequeño timeout de seguridad de 10ms para dar tiempo al contexto a despertar
+                        setTimeout(() => {
+                             if (menuAudioCtx || audioCtx) playUISound('click');
+                        }, 10);
                     });
                 });
                 
@@ -1689,7 +1722,12 @@
 
         function loadLevel() {
             try {
-                for(let i=scene.children.length-1; i>=0; i--) { const o = scene.children[i]; if(o.isMesh || o.isGroup || o.isPoints) scene.remove(o); }
+                for(let i=scene.children.length-1; i>=0; i--) { 
+                    const o = scene.children[i]; 
+                    if(o.isMesh || o.isGroup || o.isPoints || o.isLight) scene.remove(o); 
+                }
+                // -----------------------
+
                 scene.add(new THREE.AmbientLight(0x606060));
                 
                 monsters = []; objects = []; collidables = []; walls = []; // Reset walls
