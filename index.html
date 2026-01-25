@@ -1722,17 +1722,21 @@
 
         function loadLevel() {
             try {
+                // Limpieza de objetos previos
                 for(let i=scene.children.length-1; i>=0; i--) { 
                     const o = scene.children[i]; 
                     if(o.isMesh || o.isGroup || o.isPoints || o.isLight) scene.remove(o); 
                 }
-                // -----------------------
 
-                scene.add(new THREE.AmbientLight(0x606060));
-                
-                monsters = []; objects = []; collidables = []; walls = []; // Reset walls
+                // --- CORRECCIÓN DE BRILLO AQUÍ ---
+                // Antes era 0x606060 (Muy oscuro). 
+                // Lo subimos a 0x909090 para que se vea el suelo sin linterna.
+                scene.add(new THREE.AmbientLight(0x909090)); 
+                // --------------------------------
+
+                monsters = []; objects = []; collidables = []; walls = [];
                 keysHeld = { red: false, blue: false, green: false }; 
-                document.getElementById('battery-count').innerText = `[${batteryCount}]`; // (NUEVO)
+                document.getElementById('battery-count').innerText = `[${batteryCount}]`; 
                 isFirstPerson = false;
                 particleSystem = null; 
 
@@ -1746,11 +1750,7 @@
                 spawnMonsters();
                 initParticles();
 
-                // --- NUEVO: Configurar el PRIMER sonido ambiente ---
-                // El primer sonido sonará entre 20 y 50 segundos después de iniciar el nivel.
-                // Usamos performance.now() para sincronizarlo con el tiempo del motor.
                 nextAmbienceTime = performance.now() + 20000 + (Math.random() * 30000);
-                // --------------------------------------------------
 
             } catch(e) { logError("Level Error: " + e.message); }
         }
