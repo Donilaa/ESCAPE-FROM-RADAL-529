@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>ESCAPE FROM RADAL 529</title>
+    <style>
+        /* IMPORTAR FUENTE DE TERROR DIGITAL */
+            @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap');
+
+            /* Mantén tu otra fuente (PixelFont) como estaba para el resto del juego */
+            @font-face {
+                font-family: 'PixelFont';
+                src: url('https://fonts.gstatic.com/s/pressstart2p/v15/e3t4euO8T-pHr7pBCXRnHw.woff2') format('woff2');
+            }
+        /* --- ESTILOS DEL NUEVO MENÚ PRINCIPAL --- */
+        #main-menu-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000; /* Fondo negro sólido para tapar el juego */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20000; /* Misma altura que tenían las pantallas antes */
+            text-align: center;
+        }
+        #game-over {
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            
+            /* Fondo negro con un toque de "sangre" en los bordes */
+            background: radial-gradient(circle, rgba(0,0,0,0.8) 20%, #200000 100%);
+            
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            z-index: 20000;
+        }
+
+        .death-title {
+            font-family: 'Black Ops One', cursive;
+            font-size: 100px; /* Gigante */
+            margin-bottom: 10px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            
+            /* Color Sangre Oscura */
+            color: #8a0000;
+            
+            /* Sombra negra dura */
+            text-shadow: 6px 6px 0px #000;
+            
+            /* Animación: Un latido lento y doloroso */
+            animation: death-pulse 4s infinite ease-in-out;
+        }
+
+        .death-info {
+            font-family: 'PixelFont', monospace;
+            color: #666; /* Gris ceniza */
+            font-size: 14px;
+            margin-bottom: 60px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-top: 1px solid #400; /* Líneas rojas muy oscuras */
+            border-bottom: 1px solid #400;
+            padding: 10px 30px;
+        }
+
+        @keyframes death-pulse {
+            0%, 100% { transform: scale(1); color: #8a0000; }
+            50% { transform: scale(1.05); color: #aa0000; text-shadow: 6px 6px 10px rgba(255,0,0,0.2); }
+        }
+        /* --- NUEVO ESTILO MENÚ DE PAUSA (Inmersivo) --- */
+        #pause-menu {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            
+            /* Fondo oscuro graduado para que se lea bien */
+            background: radial-gradient(circle, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.95) 90%);
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20000;
+        }
+
+        .pause-title {
+            font-family: 'Black Ops One', cursive;
+            font-size: 80px;
+            color: #cc0000;
+            letter-spacing: 15px;
+            margin-bottom: 10px;
+            
+            /* Sombra sólida, sin neón */
+            text-shadow: 4px 4px 0px #000;
+            
+            /* CAMBIO: Usamos 'ease-in-out' para que sea suave (sin saltos) */
+            /* 2s es un buen tiempo para una respiración lenta y terrorífica */
+            animation: breathe-text 2s infinite ease-in-out;
+        }
+
+        /* CAMBIO: Nueva animación que NO desaparece */
+        @keyframes breathe-text {
+            0% { 
+                opacity: 1; 
+                transform: scale(1); 
+            }
+            50% { 
+                opacity: 0.6; /* Baja solo al 60%, nunca desaparece */
+                transform: scale(0.98); /* Se encoge un pelín sutilmente */
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1); 
+            }
+        }
+
+        .pause-subtitle {
+            font-family: 'PixelFont', monospace;
+            color: #666; /* Gris más oscuro y apagado */
+            font-size: 14px;
+            margin-bottom: 60px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 5px 20px;
+        }
+
+        .pause-btn {
+            background: transparent;
+            color: #aaa; /* Gris claro por defecto */
+            border: none;
+            border-left: 4px solid transparent;
+            padding: 10px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            font-family: 'Black Ops One', cursive;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            margin: 5px;
+            width: 300px;
+            text-align: left;
+        }
+
+        .pause-btn:hover {
+            color: #fff; /* Blanco al pasar el mouse */
+            border-left: 4px solid #cc0000; /* Borde rojo sólido */
+            padding-left: 50px;
+            background: linear-gradient(90deg, rgba(100,0,0,0.2), transparent);
+            /* Sin resplandor neón en el hover tampoco */
+        }
+
+        .title-main {
+            font-family: 'Black Ops One', cursive;
+            font-size: 85px;
+            margin-bottom: 40px;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            
+            /* COLOR BASE: HUESO (Blanco sucio/Beige pálido) */
+            color: #b8ad9f;
+            
+            /* Limpieza de fondo */
+            background: none;
+            -webkit-background-clip: border-box;
+            background-clip: border-box;
+            
+            /* Sombra negra dura */
+            text-shadow: 4px 4px 0px #000000;
+            
+            /* Animación de 5 segundos */
+            animation: title-pulse 5s infinite ease-in-out;
+        }
+
+        @keyframes title-pulse {
+            0% { 
+                /* INICIO: Hueso Pálido */
+                color: #b8ad9f; 
+                text-shadow: 4px 4px 0px #000, 0 0 10px rgba(220, 208, 192, 0.2);
+                transform: scale(1); 
+            }
+            50% { 
+                /* MITAD: Infección (Rojo Sangre Oscuro) */
+                color: #8a0000; 
+                /* El resplandor es rojo turbio */
+                text-shadow: 4px 4px 0px #000, 0 0 30px rgba(138, 0, 0, 0.6);
+                transform: scale(1.02); 
+            }
+            100% { 
+                /* FIN: Vuelta al Hueso */
+                color: #b8ad9f; 
+                text-shadow: 4px 4px 0px #000, 0 0 10px rgba(220, 208, 192, 0.2);
+                transform: scale(1); 
+            }
+        }
+
+
+        #controls-panel {
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+        }
+
+        #menu-main-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Esto centra la caja del botón */
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 5px;
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .version-tag {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #333;
+            font-size: 10px;
+        }
+
+        /* Efecto de Nieve / Interferencia */
+        #static-noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9500;
+            opacity: 0;
+            
+            /* CAMBIO CLAVE: Modo de fusión oscuro */
+            mix-blend-mode: multiply; 
+            
+            /* CAMBIO CLAVE: Grano más grande y "tosco" */
+            image-rendering: pixelated;
+            background-size: 512px 512px; /* Forzamos que la textura sea grande */
+            
+            animation: static-anim 0.2s steps(4) infinite;
+        }
+
+        @keyframes static-anim {
+            0% { background-position: 0 0; }
+            25% { background-position: -50px -50px; transform: scale(1.01); }
+            50% { background-position: 20px 20px; }
+            75% { background-position: -20px 50px; transform: scale(0.99); }
+            100% { background-position: 0 0; }
+        }
+        /* --- EFECTO CRT / VHS --- */
+        #crt-overlay {
+    
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            
+            /* CAMBIO 1: Scanlines mucho más sutiles (0.1 de opacidad en vez de 0.25) */
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.1) 50% 
+            ), linear-gradient(
+                90deg, 
+                rgba(255, 0, 0, 0.06), 
+                rgba(0, 255, 0, 0.02), 
+                rgba(0, 0, 255, 0.06)
+            );
+            background-size: 100% 3px, 3px 100%;
+            
+            /* CAMBIO 2: Viñeta reducida al 40% (antes 90% o 50%) */
+            box-shadow: inset 0 0 150px rgba(0,0,0,0.4);
+        }
+
+        /* 3. Ajuste de color retro para el juego */
+        canvas {
+            filter: contrast(1.1) brightness(1.3) sepia(0.2) saturate(0.8);
+        }
+
+        @font-face {
+            font-family: 'PixelFont';
+            src: url('https://fonts.gstatic.com/s/pressstart2p/v15/e3t4euO8T-pHr7pBCXRnHw.woff2') format('woff2');
+        }
+
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'PixelFont', monospace; user-select: none; }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: crosshair; }
+
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; text-shadow: 2px 2px 0 #000; }
+        .hud-box { position: absolute; padding: 10px; background: rgba(0,0,0,0.6); border: 2px solid #555; color: #fff; font-size: 10px; }
+        #hud-top { top: 20px; left: 20px; color: #0f0; }
+        #hud-keys { top: 60px; left: 20px; display: flex; gap: 10px; }
+        .key-slot { width: 30px; height: 30px; border: 2px solid #555; background: #000; display: flex; justify-content: center; align-items: center; font-size: 20px; color: #fff; }
+        .key-slot.has-red { background: #500; border-color: #f00; box-shadow: 0 0 15px #f00; }
+        .key-slot.has-blue { background: #005; border-color: #00f; box-shadow: 0 0 15px #00f; }
+        .key-slot.has-green { background: #050; border-color: #0f0; box-shadow: 0 0 15px #0f0; }
+
+        #stamina-label { 
+            position: absolute; 
+            right: 245px; 
+            bottom: 30px; /* Un poco más abajo que la batería */
+            color: #00ffff; /* Cian Neón */
+            font-family: 'Black Ops One', cursive; 
+            font-size: 14px; 
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        #stamina-container { 
+            position: absolute; 
+            bottom: 30px; 
+            right: 30px; 
+            width: 200px; 
+            height: 20px; 
+            
+            /* Borde doble industrial */
+            border: 2px solid #555;
+            outline: 2px solid #000;
+            background-color: #111;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            overflow: hidden; 
+        }
+
+        #stamina-bar { 
+            width: 100%; 
+            height: 100%; 
+            background-color: #00ffff; /* Color base */
+            transition: width 0.1s linear;
+            
+            /* --- EFECTO DE SEGMENTOS --- */
+            background-image: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                transparent 8px,
+                #000000 8px,
+                #000000 10px
+            );
+            
+            box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        #battery-container { position: absolute; bottom: 55px; right: 30px; width: 200px; height: 15px; border: 2px solid #fff; background: #000; }
+        #battery-bar { width: 100%; height: 100%; background: #ffcc00; transition: width 0.1s; }
+        #battery-label { 
+            position: absolute; 
+            right: 245px; /* Ajustado para dejar espacio al borde */
+            bottom: 55px; 
+            color: #ffcc00; 
+            font-family: 'Black Ops One', cursive; /* Fuente militar */
+            font-size: 14px; 
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px #ffcc00; /* Brillo sutil */
+        }
+
+        #battery-container { 
+            position: absolute; 
+            bottom: 55px; 
+            right: 30px; 
+            width: 200px; 
+            height: 20px; /* Un poco más alto */
+            
+            /* Borde doble estilo carcasa metálica */
+            border: 2px solid #555;
+            outline: 2px solid #000;
+            
+            /* Fondo oscuro tecnológico */
+            background-color: #111;
+            
+            /* Sombra para separarlo del juego */
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            
+            /* Recorte para que la barra no se salga */
+            overflow: hidden; 
+        }
+
+        #battery-bar { 
+            width: 100%; 
+            height: 100%; 
+            background: #ffcc00; 
+            transition: width 0.2s linear; /* Transición más suave */
+            
+            /* --- EFECTO DE SEGMENTOS LED --- */
+            /* Esto crea rayas negras verticales encima del color amarillo */
+            background-image: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                transparent 8px, /* 8px de color */
+                #000000 8px,     /* Línea negra empieza */
+                #000000 10px     /* Línea negra termina (2px de grosor) */
+            );
+            
+            /* Brillo interno para que parezca luz */
+            box-shadow: inset 0 0 10px rgba(255, 200, 0, 0.5);
+        }
+
+        .screen { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: #222; 
+            border: 4px solid #fff; 
+            padding: 40px; 
+            text-align: center; 
+            pointer-events: auto; 
+            max-width: 600px; 
+            
+            /* --- CORRECCIÓN: Encima de la estática (9500) y mensajes (10000) --- */
+            z-index: 20000; 
+            /* ---------------------------------------------------------------- */
+        }
+        h1 { color: #d00; font-size: 20px; margin-bottom: 20px; }
+        p { color: #ccc; font-size: 12px; line-height: 1.5; margin-bottom: 15px; }
+        button { background: #000; color: #fff; border: 2px solid #fff; padding: 15px 30px; font-size: 14px; cursor: pointer; font-family: inherit; text-transform: uppercase; }
+        button:hover { background: #fff; color: #000; }
+
+        #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 30%, #500 120%); opacity: 0; transition: opacity 0.1s; pointer-events: none; mix-blend-mode: multiply; }
+        #message-area { 
+            position: absolute; 
+            top: 30%; 
+            width: 100%; 
+            text-align: center; 
+            color: #fff; 
+            font-size: 20px; 
+            opacity: 0; 
+            transition: opacity 0.5s; 
+            text-shadow: 0 0 10px #000; 
+            
+            /* --- CORRECCIÓN: Para que se vea encima del filtro CRT --- */
+            z-index: 10000; 
+            pointer-events: none;
+            /* ------------------------------------------------------- */
+        }
+        .hidden { display: none !important; }
+        
+        #debug-log { position: absolute; bottom: 0; left: 0; width: 100%; height: 150px; background: rgba(0,0,0,0.8); color: #ff5555; font-size: 10px; overflow-y: scroll; display: none; pointer-events: none; border-top: 2px solid red; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div id="debug-log"></div>
+    <div id="danger-overlay"></div>
+    <div id="crt-overlay"></div>
+    <div id="static-noise"></div>
+    <div id="message-area"></div>
+    <div id="victory-screen" class="screen hidden">
+            <h1 style="color:#0f0">¡ESCAPASTE... POR AHORA!</h1>
+            <p>Has escapado de la instalación.</p>
+            <button class="menu-btn" onclick="location.reload()">VOLVER AL MENÚ</button>
+        </div>
+    <div id="pause-menu" class="hidden">
+        <h1 class="pause-title">BOLACA</h1>
+        <div class="pause-subtitle">// TRANSMISIÓN DETENIDA //</div>
+        
+        <button class="pause-btn" id="btn-resume">CONTINUAR</button>
+        <button class="pause-btn" id="btn-exit">ABORTAR MISIÓN</button>
+    </div>
+
+    <div id="ui-layer">
+        <div id="hud-top" class="hud-box hidden">NIVEL: <span id="level-display">1</span> | OBJETIVO: BUSCA LA LLAVE</div>
+        <div id="hud-keys" class="hidden"></div>
+        <div id="stamina-label" class="hidden">ENERGÍA</div>
+        <div id="stamina-container" class="hidden"><div id="stamina-bar"></div></div>
+        <div id="battery-label" class="hidden">LINTERNA <span id="battery-count" style="color:#fff; font-size:14px; margin-left:5px">[0]</span></div>
+        <div id="battery-container" class="hidden"><div id="battery-bar"></div></div>
+
+        
+    </div>
+    <div id="main-menu-layer">
+        
+        <div id="menu-main-view">
+            <h1 class="title-main">ESCAPE FROM<br>RADAL 529</h1>
+            
+            <button class="pause-btn" id="btn-play-game">INICIAR MISIÓN</button>
+            <button class="pause-btn" id="btn-show-controls">PROTOCOLO DE CONTROL</button>
+            
+            <div style="margin-top: 40px; color: #666; font-family: 'PixelFont'; font-size: 10px; letter-spacing: 1px;">
+                RECOMENDADO: USAR AUDÍFONOS // LUZ APAGADA
+            </div>
+        </div>
+
+        <div id="controls-panel">
+            <h2 style="font-family: 'Black Ops One'; color: #d00; font-size: 40px; margin-bottom: 30px; text-shadow: 2px 2px 0 #000;">
+                INSTRUCCIONES
+            </h2>
+            
+            <div style="background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #333; width: 100%; box-sizing: border-box;">
+                <div class="control-row"><span>MOVERSE</span> <span style="color:#fff">W, A, S, D</span></div>
+                <div class="control-row"><span>CORRER</span> <span style="color:#fff">SHIFT (Mantener)</span></div>
+                <div class="control-row"><span>INTERACTUAR</span> <span style="color:#fff">E</span></div>
+                <div class="control-row"><span>LINTERNA</span> <span style="color:#fff">F</span></div>
+                <div class="control-row"><span>DEFENSA (FLASH)</span> <span style="color:#fff">CLICK DERECHO</span></div>
+                <div class="control-row"><span>RECARGAR PILA</span> <span style="color:#fff">R</span></div>
+                <div class="control-row"><span>CAMBIAR CÁMARA</span> <span style="color:#fff">V</span></div>
+            </div>
+
+            <p style="color: #666; font-size: 10px; margin-top: 20px; text-align: center;">
+                OBJETIVO: Encuentra las llaves para desbloquear las puertas.<br>
+                Evita la oscuridad total. Escucha tu entorno.
+            </p>
+
+            <button class="pause-btn" id="btn-back-menu" style="margin-top: 20px; text-align: center;">VOLVER</button>
+        </div>
+
+        <div class="version-tag">V1.4 FINAL</div>
+    </div>
+
+    <div id="game-over" class="hidden">
+        <h1 class="death-title">TE ATRAPARON</h1>
+        
+        <div class="death-info">
+            SUJETO ELIMINADO EN NIVEL <span id="final-level" style="color: #fff">1</span>
+        </div>
+        
+        <button class="pause-btn" onclick="location.reload()">REINTENTAR MISIÓN</button>
+        <button class="pause-btn" onclick="location.reload()">MENÚ PRINCIPAL</button>
+    </div>
+        
+
+        <div id="next-level" class="screen hidden">
+            <h1 style="color:#0f0">PUERTA ABIERTA</h1>
+            <p>Descendiendo...</p>
+        </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        function logError(msg) {
+            const el = document.getElementById('debug-log');
+            el.style.display = 'block'; el.innerHTML += "> " + msg + "<br>";
+            console.error(msg);
+        }
+        window.onerror = function(msg, url, line) { logError("JS Error: " + msg + " (Line " + line + ")"); };
+
+        const RENDER_W = 320; const RENDER_H = 240;
+        const WALL_SIZE = 4;
+        const WALL_HEIGHT = 5; 
+        const MOUSE_SENSITIVITY = 0.002;
+        const TIME_STEP = 1 / 60;
+        
+        let accumulator = 0; let lastTime = 0;
+        let nextHeartbeatTime = 0; // <--- AGREGAR ESTO
+        let level = 1; let mazeSize = 11;
+        let isGameActive = false;
+        let isPaused = false;
+        let keysHeld = { red: false, blue: false, green: false };
+        let isMouseDown = false;
+        let audioCtx; let lastStepTime = 0;
+        let masterFilter;   // Filtro para el mundo (Pasos, items, etc.)
+        let masterGainNode; // Volumen mundo
+        
+        let droneOsc;       // El generador del sonido "Pesado"
+        let droneGain;      // Volumen del sonido pesado
+        let droneFilter;    // Filtro para oscurecer el drone
+        let nextAmbienceTime = 999999;
+        let flashEndTime = 0; // Para controlar cuánto dura el brillo cegador
+        let lastFlashTime = 0; // --- NUEVO: Para controlar el enfriamiento ---
+        
+        let stamina = 100; const MAX_STAMINA = 100;
+        let isExhausted = false; // ¿Está el jugador demasiado cansado para correr?
+        let isRunningState = false; // Variable global para sincronizar física y cámara
+        let battery = 100; const MAX_BATTERY = 100;
+        let batteryCount = 0; // NUEVA VARIABLE
+        let isFlashlightOn = true; let fPressed = false; 
+        
+        let isFirstPerson = false;
+        let vPressed = false;
+
+        // --- CAMERA COLLISION VARIABLES ---
+        const cameraRaycaster = new THREE.Raycaster();
+        let walls = []; // Array to store wall meshes for collision check
+        const defaultThirdPersonPos = new THREE.Vector3(0.9, 0.4, 2.8);
+
+        const clock = new THREE.Clock();
+
+        let scene, camera, renderer, player, playerBodyGroup, playerPivot, flashlight, flashModel, flashLens;
+        let particleSystem, particleGeo;
+        let bloodRuneMaterials = [];
+
+        let mazeGrid = []; let monsters = []; let objects = []; let collidables = [];
+        let mousePitch = 0;
+        let matWall, matFloor, matCeiling, matWoodFrame, matWoodPanel, matTrashMat;
+
+        const keys = { w:false, a:false, s:false, d:false, shift:false, f:false, v:false, e:false };
+
+        // --- HELPER FUNCTIONS ---
+        function createTexture(color, noise) {
+            try {
+                const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+                const ctx = c.getContext('2d'); ctx.fillStyle = color; ctx.fillRect(0,0,64,64);
+                const d = ctx.getImageData(0,0,64,64);
+                for(let i=0; i<d.data.length; i+=4){ const n=(Math.random()-0.5)*noise; d.data[i]+=n; d.data[i+1]+=n; d.data[i+2]+=n; }
+                ctx.putImageData(d,0,0);
+                const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+            } catch(e) { return null; }
+        }
+
+        function createWoodTexture() {
+            try {
+                const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+                const ctx = c.getContext('2d'); ctx.fillStyle = '#5a3a2a'; ctx.fillRect(0,0,64,64);
+                ctx.fillStyle = '#3a2a1a';
+                for(let i=0; i<32; i++) { ctx.fillRect(0, Math.random()*64, 64, Math.random()*2); }
+                const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; return t;
+            } catch(e) { return null; }
+        }
+        
+        function createTrashTexture() {
+             try {
+                const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+                const ctx = c.getContext('2d'); ctx.fillStyle = '#555555'; ctx.fillRect(0,0,32,32);
+                ctx.fillStyle = '#773322'; ctx.fillRect(5,5,10,15); 
+                ctx.fillStyle = '#333377'; ctx.fillRect(18,10,8,8); 
+                const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; return t;
+            } catch(e) { return null; }
+        }
+
+        function createCeilingTexture() {
+            try {
+                const c = document.createElement('canvas'); 
+                c.width = 128; c.height = 128;
+                const ctx = c.getContext('2d');
+                
+                // 1. Fondo Oscuro (Hormigón viejo)
+                ctx.fillStyle = '#1a1a1a'; // Casi negro
+                ctx.fillRect(0,0,128,128);
+                
+                // 2. Ruido sutil (Suciedad)
+                for(let i=0; i<400; i++) {
+                    ctx.fillStyle = (Math.random()>0.5) ? '#222222' : '#0f0f0f';
+                    ctx.fillRect(Math.random()*128, Math.random()*128, 2, 2);
+                }
+
+                // 3. DIBUJAR PLACAS (La clave para que no se vea "todo igual")
+                // Dibujamos una cuadrícula de paneles
+                ctx.strokeStyle = '#000000'; 
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                // Líneas verticales y horizontales cada 64px
+                for(let i=0; i<=128; i+=64) {
+                    ctx.moveTo(i, 0); ctx.lineTo(i, 128);
+                    ctx.moveTo(0, i); ctx.lineTo(128, i);
+                }
+                ctx.stroke();
+
+                // 4. Remaches en las cruces (Detalle industrial)
+                ctx.fillStyle = '#111111';
+                for(let x=0; x<=128; x+=64) {
+                    for(let y=0; y<=128; y+=64) {
+                        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+                    }
+                }
+
+                const t = new THREE.CanvasTexture(c); 
+                t.magFilter = THREE.NearestFilter; 
+                t.minFilter = THREE.NearestFilter;
+                t.wrapS = t.wrapT = THREE.RepeatWrapping; // IMPORTANTE: Para que se repita
+                return t;
+            } catch(e) { return null; }
+        }
+
+        function createBloodRuneTexture(seed) {
+            try {
+                const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+                const ctx = c.getContext('2d');
+                ctx.strokeStyle = '#550000'; ctx.lineWidth = 3 + Math.random()*2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.beginPath();
+                let currentX = 32 + (Math.random()-0.5)*20; let currentY = 32 + (Math.random()-0.5)*20;
+                ctx.moveTo(currentX, currentY);
+                const numSegments = 4 + Math.floor(Math.random() * 4);
+                for(let i=0; i<numSegments; i++) {
+                    currentX += (Math.random()-0.5)*35; currentY += (Math.random()-0.5)*35;
+                    currentX = Math.max(5, Math.min(59, currentX)); currentY = Math.max(5, Math.min(59, currentY));
+                    ctx.lineTo(currentX, currentY);
+                }
+                ctx.stroke();
+                for(let i=0; i<3; i++){ ctx.fillStyle = '#440000'; ctx.beginPath(); ctx.arc(Math.random()*64, Math.random()*64, Math.random()*2.5, 0, Math.PI*2); ctx.fill(); }
+                const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; return t;
+            } catch(e) { return null; }
+        }
+
+        function initMaterials() {
+            // 1. Texturas básicas (Paredes y Suelo)
+            const texWall = createTexture('#444444', 80); 
+            const texFloor = createTexture('#1a1a1a', 40);
+            
+            // 2. TEXTURA DEL TECHO (Estilo Hormigón Oscuro)
+            // Usamos la misma función que las paredes, pero con gris muy oscuro (#222222)
+            const texCeiling = createTexture('#222222', 60); 
+            
+            // Importante: Hacemos que se repita para que tenga detalle y no se vea borroso
+            if (texCeiling) {
+                texCeiling.repeat.set(mazeSize/2, mazeSize/2);
+                texCeiling.wrapS = THREE.RepeatWrapping;
+                texCeiling.wrapT = THREE.RepeatWrapping;
+            }
+
+            // 3. Definición de Materiales
+            matWall = new THREE.MeshStandardMaterial({ map: texWall, roughness: 0.95 });
+            matFloor = new THREE.MeshStandardMaterial({ map: texFloor, roughness: 0.9, metalness: 0.1 });
+            
+            // Material del Techo
+            matCeiling = new THREE.MeshStandardMaterial({ 
+                map: texCeiling, 
+                roughness: 1.0, 
+                side: THREE.DoubleSide // OBLIGATORIO para que se vea
+            });
+
+            matWoodFrame = new THREE.MeshStandardMaterial({ map: createWoodTexture(), color: 0x4a3a2a, roughness: 0.8 });
+            matWoodPanel = new THREE.MeshStandardMaterial({ map: createWoodTexture(), color: 0x6a4a3a, roughness: 0.7 });
+            matTrashMat = new THREE.MeshStandardMaterial({ map: createTrashTexture(), roughness: 0.8, metalness: 0.4 });
+
+            // 4. Runas de Sangre
+            bloodRuneMaterials = [];
+            for(let i=0; i<8; i++) {
+                const tex = createBloodRuneTexture(i);
+                bloodRuneMaterials.push(new THREE.MeshStandardMaterial({ 
+                    map: tex, 
+                    transparent: true, 
+                    opacity: 0.85, 
+                    side: THREE.DoubleSide,
+                    roughness: 0.8, 
+                    metalness: 0.1,
+                    color: 0xffffff
+                }));
+            }
+
+            // 5. Ruido Estático (Noise) para el efecto visual
+            try {
+                const c = document.createElement('canvas'); 
+                c.width = 128; c.height = 128; 
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,128,128);
+                const idata = ctx.createImageData(128, 128);
+                const buffer32 = new Uint32Array(idata.data.buffer);
+                for(let i=0; i<buffer32.length; i++) {
+                    if(Math.random() < 0.60) {
+                        const shade = Math.floor(Math.random() * 80); 
+                        buffer32[i] = (255 << 24) | (shade << 16) | (shade << 8) | shade;
+                    } else { buffer32[i] = 0xFFFFFFFF; }
+                }
+                ctx.putImageData(idata, 0, 0);
+                const noiseDiv = document.getElementById('static-noise');
+                if(noiseDiv) noiseDiv.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+            } catch(e) { console.error("Noise Gen Error", e); }
+        }
+
+        // --- SISTEMA DE PATHFINDING (BFS) ---
+        function findPath(startPos, targetPos) {
+            // 1. Convertir posición de mundo (3D) a coordenadas de rejilla (Grid)
+            const sx = Math.floor(startPos.x / WALL_SIZE + 0.5);
+            const sz = Math.floor(startPos.z / WALL_SIZE + 0.5);
+            const tx = Math.floor(targetPos.x / WALL_SIZE + 0.5);
+            const tz = Math.floor(targetPos.z / WALL_SIZE + 0.5);
+
+            // Si ya estamos en la misma celda, no hay camino que calcular
+            if(sx === tx && sz === tz) return [];
+
+            // 2. Configuración del BFS
+            const queue = [{x: sx, z: sz}];
+            const visited = new Set();
+            visited.add(`${sx},${sz}`);
+            const parents = {}; // Para reconstruir el camino
+
+            const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]; // Abajo, Arriba, Derecha, Izquierda
+
+            while(queue.length > 0) {
+                const curr = queue.shift();
+
+                // Si llegamos al destino
+                if(curr.x === tx && curr.z === tz) {
+                    const path = [];
+                    let temp = curr;
+                    while(temp.x !== sx || temp.z !== sz) {
+                        path.push(temp);
+                        const key = `${temp.x},${temp.z}`;
+                        temp = parents[key];
+                        if(!temp) break; 
+                    }
+                    return path.reverse(); // Devolvemos el camino desde el monstruo hasta el jugador
+                }
+
+                // Explorar vecinos
+                for(let d of dirs) {
+                    const nx = curr.x + d[0];
+                    const nz = curr.z + d[1];
+                    const key = `${nx},${nz}`;
+
+                    // Verificar límites, si es pared (mazeGrid 1 es pared, 0 es suelo) y si ya fue visitado
+                    if(nx >= 0 && nx < mazeSize && nz >= 0 && nz < mazeSize && 
+                    mazeGrid[nx][nz] === 0 && !visited.has(key)) {
+                        
+                        visited.add(key);
+                        parents[key] = curr;
+                        queue.push({x: nx, z: nz});
+                    }
+                }
+            }
+            return null; // No hay camino (jugador inalcanzable)
+        }
+
+        // --- CORE FUNCTIONS ---
+        function setupAudioSystem() {
+            if(!audioCtx) return;
+
+            // 1. Bus Maestro (Mundo Ahogado)
+            // Esto afecta a tus pasos y sonidos del juego
+            masterGainNode = audioCtx.createGain();
+            masterFilter = audioCtx.createBiquadFilter();
+            masterFilter.type = 'lowpass'; 
+            masterFilter.frequency.value = 22000; // Abierto al inicio
+
+            masterFilter.connect(masterGainNode);
+            masterGainNode.connect(audioCtx.destination);
+
+            // 2. Canal del DRONE (Sonido Pesado/Profundo)
+            // Usamos una onda "Diente de Sierra" porque tiene mucha energía en bajos
+            droneOsc = audioCtx.createOscillator();
+            droneOsc.type = 'sawtooth'; 
+            droneOsc.frequency.value = 40; // 40Hz (Sub-bajo muy profundo)
+
+            // Filtramos el drone para quitarle el zumbido agudo y dejar solo el "peso"
+            droneFilter = audioCtx.createBiquadFilter();
+            droneFilter.type = 'lowpass';
+            droneFilter.frequency.value = 120; // Solo pasan frecuencias muy graves
+
+            droneGain = audioCtx.createGain();
+            droneGain.gain.value = 0; // Empieza en silencio
+
+            // Conexión: Oscilador -> Su propio Filtro -> Su Volumen -> Salida
+            droneOsc.connect(droneFilter);
+            droneFilter.connect(droneGain);
+            droneGain.connect(audioCtx.destination);
+            
+            droneOsc.start();
+        }
+
+        // --- VARIABLES MÚSICA MENÚ (SOLUCIÓN DEFINITIVA) ---
+        let menuAudioCtx = null;
+        let menuGainNode = null;
+        let menuTimeout = null;
+
+        function playMenuMusic() {
+            // CANDADO DE SEGURIDAD:
+            // Si el juego ya está activo (isGameActive es true), PROHIBIDO arrancar la música.
+            if (isGameActive) return; 
+            
+            // Si ya existe el contexto, no creamos otro
+            if (menuAudioCtx) return;
+
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                menuAudioCtx = new AudioContext();
+                
+                // Nodo Maestro
+                menuGainNode = menuAudioCtx.createGain();
+                menuGainNode.gain.value = 0; 
+                menuGainNode.connect(menuAudioCtx.destination);
+                const now = menuAudioCtx.currentTime;
+
+                // --- CAPA 1: EL DRONE GRAVE ---
+                const osc1 = menuAudioCtx.createOscillator();
+                osc1.type = 'sawtooth'; 
+                osc1.frequency.value = 40; 
+                const filter1 = menuAudioCtx.createBiquadFilter();
+                filter1.type = 'lowpass';
+                filter1.frequency.value = 100;
+                osc1.connect(filter1);
+                filter1.connect(menuGainNode);
+                osc1.start();
+
+                // --- CAPA 2: MELODÍA DINÁMICA ---
+                const playGhostNote = () => {
+                    // SEGUNDO CANDADO: Si mientras tocaba alguien dio a jugar, paramos todo.
+                    if (isGameActive || !menuAudioCtx) return;
+
+                    const t = menuAudioCtx.currentTime;
+                    const noteOsc = menuAudioCtx.createOscillator();
+                    const noteGain = menuAudioCtx.createGain();
+                    
+                    noteOsc.type = 'sine'; 
+                    
+                    const notes = [440.00, 523.25, 622.25, 739.99, 880.00, 1046.50, 1244.51, 1479.98, 1760.00]; 
+                    const freq = notes[Math.floor(Math.random() * notes.length)];
+                    const detune = (Math.random() - 0.5) * 20; 
+                    noteOsc.frequency.setValueAtTime(freq + detune, t);
+                    
+                    const isShort = Math.random() > 0.4; 
+                    noteGain.gain.setValueAtTime(0, t);
+
+                    if (isShort) {
+                        noteGain.gain.linearRampToValueAtTime(0.15, t + 0.02); 
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+                        noteOsc.start(t);
+                        noteOsc.stop(t + 0.7);
+                    } else {
+                        noteGain.gain.linearRampToValueAtTime(0.10, t + 0.5); 
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
+                        noteOsc.start(t);
+                        noteOsc.stop(t + 4.5);
+                    }
+
+                    noteOsc.connect(noteGain);
+                    noteGain.connect(menuGainNode);
+                    
+                    const nextTime = 2000 + Math.random() * 4000;
+                    menuTimeout = setTimeout(playGhostNote, nextTime);
+                };
+
+                playGhostNote();
+
+                // Fade In Maestro
+                menuGainNode.gain.linearRampToValueAtTime(0.5, now + 4);
+
+            } catch (e) { console.error("Menu Audio Error:", e); }
+        }
+
+        function stopMenuMusic() {
+            // 1. Cancelar cualquier nota futura
+            if (menuTimeout) {
+                clearTimeout(menuTimeout);
+                menuTimeout = null;
+            }
+
+            // 2. CORTE AGRESIVO E INMEDIATO
+            if (menuAudioCtx) {
+                try {
+                    // Detenemos el contexto inmediatamente (nada de fade out lento que pueda fallar)
+                    menuAudioCtx.close().then(() => {
+                        menuAudioCtx = null;
+                        menuGainNode = null;
+                    });
+                } catch(e) {
+                    // Si falla el cierre suave, forzamos null para que el recolector de basura se lo lleve
+                    menuAudioCtx = null;
+                }
+            }
+        }
+
+        // --- SONIDOS DE INTERFAZ (UI) ---
+
+        function playUISound(type) {
+            const ctx = menuAudioCtx || audioCtx;
+            if (!ctx) return; 
+
+            try {
+                const t = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                // Usamos 'triangle' en ambos para que suenen del mismo "material"
+                osc.type = 'triangle'; 
+
+                if (type === 'hover') {
+                    // HOVER: "Tic" agudo y ligero (Tocar la tecla)
+                    osc.frequency.setValueAtTime(800, t); 
+                    
+                    gain.gain.setValueAtTime(0.08, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03); // Ultra corto (30ms)
+                    
+                    osc.start(t);
+                    osc.stop(t + 0.04);
+                } 
+                else if (type === 'click') {
+                    // CLICK: "Clack" grave y sólido (Presionar la tecla)
+                    // Bajamos a 300Hz (Grave) y hacemos una caída muy leve para darle peso
+                    osc.frequency.setValueAtTime(300, t);
+                    osc.frequency.exponentialRampToValueAtTime(150, t + 0.08);
+                    
+                    // Un poco más fuerte y largo que el hover, pero igual de seco
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+                    osc.start(t);
+                    osc.stop(t + 0.12);
+                }
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+            } catch (e) { console.error(e); }
+        }
+
+        function init() {
+            try {
+                initMaterials();
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); 
+                scene.fog = new THREE.Fog(0x000000, 5, 30); 
+
+                // Ajustado near plane a 0.05 para evitar ver a través de paredes en 1ra persona
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.05, 100);
+                
+                renderer = new THREE.WebGLRenderer({ antialias: false });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.domElement.style.imageRendering = "pixelated";
+                document.body.appendChild(renderer.domElement);
+
+                scene.add(new THREE.AmbientLight(0x606060)); 
+
+                loadLevel();
+
+                window.addEventListener('resize', onResize);
+                // --- PEGAR ESTO DENTRO DE init() ---
+        
+        window.addEventListener('keydown', e => {
+            // Protección: Si el evento no tiene tecla, no hacemos nada (evita el error rojo)
+            if (!e.key) return; 
+            
+            const k = e.key.toLowerCase();
+
+            // 1. Controles de Movimiento (W, A, S, D)
+            if(keys.hasOwnProperty(k)) keys[k] = true;
+            if(e.key === 'Shift') keys.shift = true;
+
+            // 2. Control de Recarga (Tecla R)
+            if(k === 'r' && isGameActive) {
+                if(batteryCount > 0) {
+                    if(battery >= 100) {
+                        showMessage("BATERÍA LLENA");
+                    } else {
+                        batteryCount--; // Gastar pila del inventario
+                        battery = Math.min(100, battery + 50); // Recargar
+                        
+                        // Actualizar el texto en pantalla
+                        const batCounter = document.getElementById('battery-count');
+                        if(batCounter) batCounter.innerText = `[${batteryCount}]`;
+
+                        // Intentar reproducir sonido (ignora error si no existe el sonido 'reload')
+                        try { playSound('reload'); } catch(err) {} 
+                        
+                        showMessage("RECARGANDO...");
+                    }
+                } else {
+                    showMessage("NO TIENES PILAS");
+                    try { playSound('error'); } catch(err) {}
+                }
+            }
+            if(k === 'e') keys.e = true; // Detectar tecla E
+        });
+
+        // -----------------------------------
+                window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; if(e.key === 'Shift') keys.shift = false; if(keys.hasOwnProperty(k)) keys[k] = false;});
+                
+                document.addEventListener('mousedown', () => isMouseDown = true);
+                document.addEventListener('mouseup', () => isMouseDown = false);
+                document.addEventListener('mousemove', (e) => {
+                    if(!isGameActive) return;
+                    if(document.pointerLockElement === document.body || isMouseDown) {
+                        player.rotation.y -= e.movementX * MOUSE_SENSITIVITY;
+                        mousePitch -= e.movementY * MOUSE_SENSITIVITY;
+                        mousePitch = Math.max(-0.8, Math.min(0.8, mousePitch));
+                        playerPivot.rotation.x = mousePitch;
+                    }
+                   
+                });
+                
+
+                
+               // --- CORRECCIÓN: FLASHAZO CON CLICK DERECHO (Mousedown) ---
+    
+                // 1. Bloquear el menú de opciones de Windows para que no moleste
+                window.addEventListener('contextmenu', e => e.preventDefault());
+
+                // 2. Detectar el click físico (Botón 2 = Derecho)
+                document.addEventListener('mousedown', e => {
+                // e.button === 2 es Click Derecho
+                if(e.button === 2) {
+                    const now = performance.now();
+                    // REGLAS: 
+                    // 1. Linterna encendida
+                    // 2. Batería suficiente (25%)
+                    // 3. Han pasado 5 segundos (5000ms) desde el último uso
+                    if(isFlashlightOn && battery >= 25 && (now - lastFlashTime > 5000)) {
+                        
+                        battery -= 25; 
+                        lastFlashTime = now; // Guardamos el momento del disparo
+                        flashEndTime = now + 200; // Duración del brillo visual
+
+                        // --- SONIDO NUEVO: DESCARGA ELÉCTRICA (Oscilador) ---
+                        // Creamos un sonido agudo que baja de tono rápidamente
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        
+                        osc.type = 'sawtooth'; // Sonido "áspero" eléctrico
+                        osc.frequency.setValueAtTime(800, audioCtx.currentTime); // Empieza agudo
+                        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3); // Baja rápido
+                        
+                        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.3);
+                        // ----------------------------------------------------
+
+                        // Lógica de Aturdir
+                        monsters.forEach(m => {
+                            if(player.position.distanceTo(m.position) < 10.0) {
+                                m.userData.stunnedUntil = now + 3000; // 3 segundos de stun
+                            }
+                        });
+                    } 
+                    // Opcional: Sonido de "Error" si intentas disparar en enfriamiento
+                    else if (now - lastFlashTime <= 5000) { playSound('error'); } 
+                }
+            });
+                // ----------------------------------------------------------
+
+                document.getElementById('btn-play-game').addEventListener('click', () => {
+                    try {
+                        // --- DETENER MÚSICA MENÚ ---
+                        stopMenuMusic();
+                        isGameActive = true;
+                        
+                        // Ocultamos el menú principal completo
+                        document.getElementById('main-menu-layer').style.display = 'none';
+                        
+                        // Mostramos el HUD del juego
+                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.remove('hidden'));
+                        
+                        // Capturamos puntero y audio
+                        try { document.body.requestPointerLock(); } catch(e){}
+                        if(!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                        else if(audioCtx.state === 'suspended') { audioCtx.resume(); }
+                        
+                        setupAudioSystem();
+                        lastTime = performance.now();
+                        
+                    } catch(e) { logError("Start Error: " + e.message); }
+                });
+
+                // 2. Botón CÓMO JUGAR: Muestra panel de controles
+                document.getElementById('btn-show-controls').addEventListener('click', () => {
+                    document.getElementById('menu-main-view').style.display = 'none';
+                    document.getElementById('controls-panel').style.display = 'flex';
+                    // Pequeño sonido de click si quieres (opcional)
+                    // playSound('click'); 
+                });
+
+                // 3. Botón VOLVER: Regresa al menú principal
+                document.getElementById('btn-back-menu').addEventListener('click', () => {
+                    document.getElementById('controls-panel').style.display = 'none';
+                    document.getElementById('menu-main-view').style.display = 'block';
+                });
+                
+                // CORRECCIÓN DEL CLICK PARA RE-CAPTURAR MOUSE (Actualizada para el nuevo menú)
+                document.addEventListener('click', (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+
+                    // IMPORTANTE: Ahora comprobamos si el menú principal está oculto (display none)
+                    const menuHidden = document.getElementById('main-menu-layer').style.display === 'none';
+                    const gameOverHidden = document.getElementById('game-over').classList.contains('hidden');
+                    const nextLevelHidden = document.getElementById('next-level').classList.contains('hidden');
+
+                    if (menuHidden && gameOverHidden && nextLevelHidden && 
+                        document.pointerLockElement !== document.body) {
+                        document.body.requestPointerLock();
+                    }
+                });
+                
+                // --- NUEVO: RE-CAPTURAR MOUSE AL HACER CLICK ---
+                
+                // 1. Re-capturar mouse al hacer click (SOLO SI ESTAMOS VIVOS)
+                document.addEventListener('click', (e) => {
+                    // Si clicamos un botón (como REINTENTAR), ignoramos esto para no bloquear
+                    if(e.target.tagName === 'BUTTON') return;
+
+                    const startHidden = document.getElementById('start-screen').classList.contains('hidden');
+                    const gameOverHidden = document.getElementById('game-over').classList.contains('hidden');
+                    const nextLevelHidden = document.getElementById('next-level').classList.contains('hidden');
+
+                    // Solo pedimos el mouse si: 
+                    // 1. Ya pasamos el menú de inicio
+                    // 2. NO estamos en Game Over
+                    // 3. NO estamos en la transición de nivel
+                    // 4. El mouse no está ya capturado
+                    if (startHidden && gameOverHidden && nextLevelHidden && 
+                        document.pointerLockElement !== document.body) {
+                        document.body.requestPointerLock();
+                    }
+                });
+
+                // 2. Sincronizar estado (BLINDADO CONTRA LA MUERTE)
+                document.addEventListener('pointerlockchange', () => {
+                    if (document.pointerLockElement === document.body) {
+                        // 1. Mouse Capturado: Estamos jugando
+                        isPaused = false;
+                        
+                        // --- FIX: RESETEAR EL RELOJ ---
+                        // Esto evita que el tiempo de pausa se cuente como tiempo de juego
+                        lastTime = performance.now(); 
+                        // ------------------------------
+
+                        const pauseMenu = document.getElementById('pause-menu');
+                        if(pauseMenu) pauseMenu.classList.add('hidden');
+                    } else {
+                        // 2. Mouse Soltado (Por ESC o Alt-Tab)
+                        
+                        // Verificamos si los elementos existen antes de comprobar sus clases
+                        // El operador "?." evita el crash si el elemento es null
+                        const gameOverHidden = document.getElementById('game-over')?.classList.contains('hidden');
+                        const victoryScreen = document.getElementById('victory-screen');
+                        // Si no existe la pantalla de victoria, asumimos que está oculta (true)
+                        const victoryHidden = victoryScreen ? victoryScreen.classList.contains('hidden') : true;
+                        
+                        const mainMenuLayer = document.getElementById('main-menu-layer');
+                        const mainMenuHidden = mainMenuLayer ? (mainMenuLayer.style.display === 'none') : true;
+
+                        // Solo pausamos si el juego estaba activo y no hay otras pantallas abiertas
+                        if (isGameActive && gameOverHidden && victoryHidden && mainMenuHidden) {
+                            isPaused = true;
+                            const pauseMenu = document.getElementById('pause-menu');
+                            if(pauseMenu) pauseMenu.classList.remove('hidden');
+                        }
+                    }
+                });
+
+                document.getElementById('btn-resume').addEventListener('click', () => {
+                    document.body.requestPointerLock();
+                });
+
+                // Botón SALIR: Recargamos la página. 
+                // Es la forma más limpia de reiniciar toda la memoria, audio y variables para ir al menú principal.
+                document.getElementById('btn-exit').addEventListener('click', () => {
+                    location.reload(); 
+                });
+
+                // --- ACTIVADOR DE MÚSICA DE MENÚ ---
+                // Los navegadores prohíben el audio automático.
+                // Esperamos el PRIMER clic en cualquier parte para arrancar la música del menú.
+                const startMusicHandler = () => {
+                    playMenuMusic();
+                    // Una vez activada, quitamos el detector para no reiniciar
+                    document.removeEventListener('click', startMusicHandler);
+                    document.removeEventListener('keydown', startMusicHandler);
+                };
+                document.addEventListener('click', startMusicHandler);
+                document.addEventListener('keydown', startMusicHandler);
+
+
+                // --- CONECTAR SONIDOS A LOS BOTONES DEL MENÚ (CORREGIDO) ---
+                // Esto conecta los sonidos generados (osciladores) a los botones visuales
+                document.querySelectorAll('.menu-btn').forEach(btn => {
+                    btn.addEventListener('mouseenter', () => {
+                        playUISound('hover');
+                    });
+                    btn.addEventListener('mousedown', () => {
+                        playUISound('click');
+                    });
+                });
+                
+                // BORRA LAS LÍNEAS QUE DECÍAN "loadBase64Sound" O "...PEGA_AQUÍ..."
+                // ESAS LÍNEAS SON LAS QUE ROMPEN EL JUEGO.
+                // -----------------------------
+
+                animate();
+            } catch(e) { logError("Init Critical: " + e.message); }
+        }
+
+        // --- PARTÍCULAS DENSAS ---
+        function initParticles() {
+            const particleCount = 2000; 
+            particleGeo = new THREE.BufferGeometry();
+            const posArray = new Float32Array(particleCount * 3);
+            for(let i=0; i<particleCount*3; i+=3) {
+                posArray[i] = (Math.random() - 0.5) * mazeSize * WALL_SIZE * 1.2;
+                posArray[i+1] = Math.random() * WALL_HEIGHT * 1.5;
+                posArray[i+2] = (Math.random() - 0.5) * mazeSize * WALL_SIZE * 1.2;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.12, color: 0x665544, transparent: true, opacity: 0.4,
+                sizeAttenuation: true
+            });
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+        }
+
+        function updateParticles(dt) {
+             if(!particleSystem || !particleGeo) return;
+             const positions = particleGeo.attributes.position.array;
+             const time = Date.now() * 0.001;
+             for(let i=0; i<positions.length; i+=3) {
+                 positions[i] += (Math.sin(time + i) * 0.02 - 0.01) * dt * 60;
+                 positions[i+1] += (Math.cos(time + i*2) * 0.02 - 0.005) * dt * 60; 
+                 positions[i+2] += (Math.sin(time + i*3) * 0.02 - 0.01) * dt * 60;
+                 if(positions[i+1] > WALL_HEIGHT * 1.5) positions[i+1] = 0;
+                 if(positions[i+1] < 0) positions[i+1] = WALL_HEIGHT * 1.5;
+             }
+             particleGeo.attributes.position.needsUpdate = true;
+        }
+
+        // --- OBJETOS ---
+        createCrate.geometry = null; 
+
+        function createCrate(x, z) {
+            if (!createCrate.geometry) {
+                createCrate.geometry = new THREE.BoxGeometry(1.3, 1.3, 1.3);
+            }
+            // Geometría y Material
+            const crate = new THREE.Mesh(createCrate.geometry, matWoodPanel);
+            
+            // Posición con pequeña variación
+            const offX = (Math.random() - 0.5) * 0.5; 
+            const offZ = (Math.random() - 0.5) * 0.5;
+            crate.position.set(x*WALL_SIZE + offX, 1.3/2, z*WALL_SIZE + offZ);
+            crate.rotation.y = Math.random();
+            
+            scene.add(crate);
+            collidables.push(crate);
+            
+            // IMPORTANTE: NO marcamos mazeGrid[x][z] = 1
+            // Dejamos que el pathfinding pase por aquí. La evasión será física.
+        }
+
+        function createTrash(x, z) {
+            const type = Math.floor(Math.random() * 4); 
+            let mesh;
+            const ox = (Math.random() - 0.5) * 2.5; 
+            const oz = (Math.random() - 0.5) * 2.5;
+            if(type === 0) { 
+                const cols = [0xff0000, 0x0000ff, 0xffaa00, 0xaaaaaa];
+                const col = cols[Math.floor(Math.random()*cols.length)];
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.25, 8), new THREE.MeshStandardMaterial({color: col, metalness: 0.8}));
+                mesh.rotation.z = Math.PI/2; mesh.position.y = 0.1;
+            } else if(type === 1) { 
+                const col = (Math.random()>0.5) ? 0x44aa44 : 0xaa4444; 
+                mesh = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8), new THREE.MeshStandardMaterial({color: col, transparent:true, opacity:0.8}));
+                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.15, 8), new THREE.MeshStandardMaterial({color: col}));
+                neck.position.y = 0.225; mesh.add(body, neck);
+                mesh.rotation.x = Math.PI/2; mesh.rotation.z = Math.random()*3; mesh.position.y = 0.1;
+            } else if(type === 2) { 
+                mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), new THREE.MeshStandardMaterial({color: 0xdddddd, side: THREE.DoubleSide}));
+                mesh.rotation.x = -Math.PI/2; mesh.rotation.z = Math.random()*3; mesh.position.y = 0.02; 
+            } else { 
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.6, 5), new THREE.MeshStandardMaterial({color: 0x5c4033}));
+                mesh.rotation.x = Math.PI/2; mesh.rotation.z = Math.random()*3; mesh.position.y = 0.05;
+            }
+            mesh.position.x = x*WALL_SIZE + ox; mesh.position.z = z*WALL_SIZE + oz; scene.add(mesh);
+        }
+
+        function createBattery(x, z) {
+            const grp = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({color: 0x00ff00, metalness: 0.8, roughness: 0.2});
+            const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.4, 12), mat); cyl.position.y = 0.2;
+            grp.add(cyl); grp.add(new THREE.PointLight(0x00ff00, 1, 3));
+            grp.position.set(x*WALL_SIZE, 0.5, z*WALL_SIZE); grp.userData = { type: 'battery' };
+            scene.add(grp); objects.push(grp);
+        }
+
+        // Función auxiliar para obtener colores "Terror" (Menos saturados)
+        function getHorrorColor(colorName) {
+            if(colorName === 'red') return 0xaa2222;   // Rojo sangre seca
+            if(colorName === 'blue') return 0x335588;  // Azul acero oxidado
+            if(colorName === 'green') return 0x335533; // Verde musgo oscuro
+            return 0xffffff;
+        }
+
+        function createDoor(x, z, color, isExit) {
+            const grp = new THREE.Group();
+            const horrorColor = getHorrorColor(color);
+            
+            // Marco de madera (Caja sólida)
+            const fr = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.3, 0.3), matWoodFrame); 
+            fr.position.y = 1.15;
+
+            // Panel de la puerta
+            const pn = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, 0.1), matWoodPanel); 
+            pn.position.set(0, 1.15, -0.05);
+            
+            // CAMBIO VISUAL: El Pomo ahora brilla con el color de la llave (Tu idea)
+            const kb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8), 
+                new THREE.MeshStandardMaterial({
+                    color: horrorColor, // Color de la llave
+                    roughness: 0.2, 
+                    metalness: 0.8,
+                    emissive: horrorColor, // Brilla un poco en la oscuridad
+                    emissiveIntensity: 0.2
+                })
+            ); 
+            kb.position.set(0.4, 1.1, 0.15); // Z ajustado a 0.15 para sobresalir del marco
+
+            // --- LA "X" PINTADA ---
+            const xGroup = new THREE.Group();
+            const xMat = new THREE.MeshBasicMaterial({ color: horrorColor });
+            
+            const bar1 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.15), xMat);
+            bar1.rotation.z = Math.PI / 4;
+            const bar2 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.15), xMat);
+            bar2.rotation.z = -Math.PI / 4;
+            
+            xGroup.add(bar1, bar2);
+            
+            // CORRECCIÓN DE BUG: Z movido de 0.06 a 0.16
+            // El marco tiene profundidad 0.3 (llega hasta 0.15), así que ponemos la X en 0.16 para que se vea.
+            xGroup.position.set(0, 1.3, 0.16); 
+            // ----------------------
+
+            grp.add(fr, pn, kb, xGroup);
+            
+            // Luz tenue (Opcional, si quieres mantenerla)
+            const light = new THREE.PointLight(horrorColor, 0.8, 3);
+            light.position.set(0, 1.5, 0.5);
+            grp.add(light);
+            
+            // Rotación y Posición
+            let rot = 0, offX=0, offZ=0;
+            if(mazeGrid[x][z] === 1) {
+                if(mazeGrid[x+1] && mazeGrid[x+1][z]===0) { rot = Math.PI/2; offX = WALL_SIZE/2 + 0.05; }
+                else if(mazeGrid[x-1] && mazeGrid[x-1][z]===0) { rot = -Math.PI/2; offX = -WALL_SIZE/2 - 0.05; }
+                else if(mazeGrid[x][z+1] && mazeGrid[x][z+1]===0) { rot = 0; offZ = WALL_SIZE/2 + 0.05; }
+                else { rot = Math.PI; offZ = -WALL_SIZE/2 - 0.05; }
+            }
+            grp.rotation.y = rot; grp.position.set(x*WALL_SIZE + offX, 0, z*WALL_SIZE + offZ);
+            grp.userData = { type: 'door', color: color, isExit: isExit };
+            scene.add(grp); objects.push(grp);
+        }
+
+        function createKey(x, z, color) {
+            const grp = new THREE.Group();
+            const horrorColor = getHorrorColor(color);
+            
+            const mat = new THREE.MeshStandardMaterial({color: horrorColor, roughness: 0.4, metalness: 0.6});
+            
+            // Forma de la llave
+            const r = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 8, 16), mat); r.position.y = 0.5;
+            const s = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), mat); s.rotation.x = Math.PI/2; s.position.set(0, 0.5, 0.4);
+            const t = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.05), mat); t.position.set(0, 0.5, 0.55);
+            
+            grp.add(r, s, t); 
+            grp.position.set(x*WALL_SIZE, 1, z*WALL_SIZE); 
+            
+            // Luz muy tenue
+            grp.add(new THREE.PointLight(horrorColor, 0.6, 3));
+            
+            grp.userData = { type: 'key', color: color };
+            scene.add(grp); objects.push(grp);
+        }
+
+        function spawnLevelContent() {
+            let colors = ['red']; if(level >= 2) colors.push('blue'); if(level >= 4) colors.push('green');
+            const exitColor = colors[Math.floor(Math.random()*colors.length)];
+            
+            let wC = []; // Candidatos de Pared (Para Puertas)
+            let fC = []; // Candidatos de Suelo (Para Items)
+
+            // 1. Clasificar celdas
+            for(let x=1; x<mazeSize-1; x++) { 
+                for(let z=1; z<mazeSize-1; z++) {
+                    if(mazeGrid[x][z] === 0) { 
+                        // Es suelo, candidato para items si está lejos del inicio
+                        if(x > 3 || z > 3) fC.push({x,z}); 
+                    }
+                    else if(mazeGrid[x][z] === 1) { 
+                        // Es pared, verificar si sirve para puerta
+                        let n = 0; 
+                        if(mazeGrid[x+1][z]===0) n++; 
+                        if(mazeGrid[x-1][z]===0) n++; 
+                        if(mazeGrid[x][z+1]===0) n++; 
+                        if(mazeGrid[x][z-1]===0) n++; 
+                        
+                        // REGLA ESTRICTA: Solo paredes con 1 lado libre (se ven mejor)
+                        if(n === 1 && (x>2 || z>2)) wC.push({x,z}); 
+                    }
+                }
+            }
+
+            // 2. CORRECCIÓN DEL BUG: Fallback inteligente
+            // Si la regla estricta no encontró paredes, buscamos CUALQUIER pared con salida
+            if (wC.length === 0) {
+                 for(let x=1; x<mazeSize-1; x++) { 
+                    for(let z=1; z<mazeSize-1; z++) {
+                        if(mazeGrid[x][z] === 1 && (x>2 || z>2)) {
+                            // Si tiene al menos un vecino suelo, nos sirve
+                            if (mazeGrid[x+1][z]===0 || mazeGrid[x-1][z]===0 || 
+                                mazeGrid[x][z+1]===0 || mazeGrid[x][z-1]===0) {
+                                wC.push({x,z});
+                            }
+                        }
+                    }
+                 }
+            }
+
+            // 3. Generar Objetos (Cajas)
+            const numCrates = 3 + level;
+            for(let i=0; i<numCrates; i++) {
+                if(fC.length > 0) {
+                    const idx = Math.floor(Math.random()*fC.length);
+                    const p = fC[idx];
+                    if(p.x > 4 || p.z > 4) { createCrate(p.x, p.z); fC.splice(idx, 1); }
+                }
+            }
+
+            // 4. Generar Basura
+            const numTrash = 12 + level*3;
+            for(let i=0; i<numTrash; i++) {
+                if(fC.length > 0) { const p = fC[Math.floor(Math.random()*fC.length)]; createTrash(p.x, p.z); }
+            }
+
+            // 5. Generar PUERTA (Usando solo wC)
+            if(wC.length > 0) { 
+                const p = wC[Math.floor(Math.random()*wC.length)]; 
+                createDoor(p.x, p.z, exitColor, true); 
+            } 
+            // ELIMINADO EL "ELSE IF" QUE CAUSABA EL BUG
+
+            // 6. Generar Llave y Baterías
+            if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createKey(p.x, p.z, exitColor); }
+            for(let i=0; i<3; i++) {
+                if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createBattery(p.x, p.z); }
+            }
+
+            const hud = document.getElementById('hud-keys'); hud.innerHTML = '';
+            colors.forEach(c => { if(c === exitColor) { const s = document.createElement('div'); s.className = 'key-slot'; s.id = 'slot-'+c; s.innerText = "?"; s.style.color = c; hud.appendChild(s); } });
+        }
+
+        function generateMaze() {
+            mazeGrid = [];
+            // 1. Inicializar y Generar Laberinto (Algoritmo DFS)
+            for(let x=0; x<mazeSize; x++) { mazeGrid[x] = []; for(let z=0; z<mazeSize; z++) mazeGrid[x][z] = 1; }
+            const stack = [{x: 1, z: 1}]; mazeGrid[1][1] = 0;
+            
+            while(stack.length > 0) {
+                const cur = stack.pop(); const neighbors = [];
+                [[0,-2],[0,2],[-2,0],[2,0]].forEach(d => { 
+                    const nx=cur.x+d[0], nz=cur.z+d[1]; 
+                    if(nx>0 && nx<mazeSize-1 && nz>0 && nz<mazeSize-1 && mazeGrid[nx][nz] === 1) 
+                        neighbors.push({x:nx, z:nz, dx:d[0]/2, dz:d[1]/2}); 
+                });
+                if(neighbors.length > 0) { 
+                    stack.push(cur); const c = neighbors[Math.floor(Math.random()*neighbors.length)]; 
+                    mazeGrid[cur.x+c.dx][cur.z+c.dz] = 0; mazeGrid[c.x][c.z] = 0; stack.push({x: c.x, z: c.z}); 
+                }
+            }
+            // Huecos extra
+            for(let x=1; x<mazeSize-1; x++) { for(let z=1; z<mazeSize; z++) { if(mazeGrid[x][z]===1 && Math.random()>0.8) { 
+                const v = (mazeGrid[x+1][z]===0 && mazeGrid[x-1][z]===0); const h = (mazeGrid[x][z+1]===0 && mazeGrid[x][z-1]===0);
+                if(v || h) mazeGrid[x][z] = 0; 
+            }}}
+
+            // --- NUEVO: PRE-CALCULAR COLORES DE PAREDES ---
+            // Creamos una matriz paralela para guardar qué color tiene cada pared
+            let wallColors = [];
+            for(let x=0; x<mazeSize; x++) {
+                wallColors[x] = [];
+                for(let z=0; z<mazeSize; z++) {
+                    // Generamos el color "Terror" para cada celda
+                    const baseDark = new THREE.Color(0x554433);
+                    let variance = (Math.random() * 0.4) - 0.2;
+                    if(Math.random() > 0.8) variance -= 0.3;
+                    const isReddish = Math.random() > 0.9;
+                    
+                    const finalColor = new THREE.Color().setRGB(
+                        Math.max(0.1, baseDark.r + variance + (isReddish ? 0.3 : 0)), 
+                        Math.max(0.1, baseDark.g + variance - (isReddish ? 0.1 : 0)), 
+                        Math.max(0.1, baseDark.b + variance - (isReddish ? 0.1 : 0))
+                    );
+                    wallColors[x][z] = finalColor;
+                }
+            }
+
+            // --- CONSTRUCCIÓN DE OBJETOS ---
+            const wallGeo = new THREE.BoxGeometry(WALL_SIZE, WALL_HEIGHT, WALL_SIZE);
+            const ceilingTileGeo = new THREE.PlaneGeometry(WALL_SIZE, WALL_SIZE);
+            const runeGeo = new THREE.PlaneGeometry(1.5, 1.5); 
+
+            // Suelo Único
+            const floorGeo = new THREE.PlaneGeometry(mazeSize*WALL_SIZE, mazeSize*WALL_SIZE);
+            if(matFloor.map) matFloor.map.repeat.set(mazeSize/2, mazeSize/2);
+            const floor = new THREE.Mesh(floorGeo, matFloor);
+            floor.rotation.x = -Math.PI/2;
+            floor.position.set((mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2, 0, (mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2);
+            scene.add(floor);
+
+            for(let x=0; x<mazeSize; x++) { 
+                for(let z=0; z<mazeSize; z++) { 
+                    
+                    // A) ES PARED -> Usamos su color pre-generado
+                    if(mazeGrid[x][z] === 1) { 
+                        const w = new THREE.Mesh(wallGeo, matWall.clone());
+                        w.material.color = wallColors[x][z]; 
+                        w.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE); 
+                        scene.add(w); walls.push(w); 
+
+                        // Runas (sin cambios)
+                        if(Math.random() > 0.96) { 
+                            const randomBloodMat = bloodRuneMaterials[Math.floor(Math.random() * bloodRuneMaterials.length)];
+                            const rune = new THREE.Mesh(runeGeo, randomBloodMat);
+                            let placed = false;
+                            if(z>0 && mazeGrid[x][z-1]===0) { rune.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE-WALL_SIZE/2-0.05); placed=true; }
+                            else if (z<mazeSize-1 && mazeGrid[x][z+1]===0) { rune.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE+WALL_SIZE/2+0.05); rune.rotation.y=Math.PI; placed=true; }
+                            else if(x>0 && mazeGrid[x-1][z]===0) { rune.position.set(x*WALL_SIZE-WALL_SIZE/2-0.05, WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=-Math.PI/2; placed=true; }
+                            else if (x<mazeSize-1 && mazeGrid[x+1][z]===0) { rune.position.set(x*WALL_SIZE+WALL_SIZE/2+0.05, WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=Math.PI/2; placed=true; }
+                            if(placed) scene.add(rune);
+                        }
+                    } 
+                    // B) ES PASILLO (TECHO) -> Heredar color de vecino
+                    else {
+                        const c = new THREE.Mesh(ceilingTileGeo, matWall.clone());
+                        
+                        // Lógica de "Robar Color": Buscar paredes vecinas
+                        let neighborsColors = [];
+                        if(x>0 && mazeGrid[x-1][z]===1) neighborsColors.push(wallColors[x-1][z]);
+                        if(x<mazeSize-1 && mazeGrid[x+1][z]===1) neighborsColors.push(wallColors[x+1][z]);
+                        if(z>0 && mazeGrid[x][z-1]===1) neighborsColors.push(wallColors[x][z-1]);
+                        if(z<mazeSize-1 && mazeGrid[x][z+1]===1) neighborsColors.push(wallColors[x][z+1]);
+
+                        if(neighborsColors.length > 0) {
+                            // Si tiene paredes al lado, toma el color de una de ellas
+                            c.material.color = neighborsColors[Math.floor(Math.random() * neighborsColors.length)];
+                        } else {
+                            // Si está en medio de una sala grande (sin paredes pegadas), usa su propio color random
+                            c.material.color = wallColors[x][z];
+                        }
+                        
+                        c.position.set(x*WALL_SIZE, WALL_HEIGHT, z*WALL_SIZE);
+                        c.rotation.x = Math.PI / 2;
+                        scene.add(c);
+                    }
+                }
+            }
+        }
+
+        function loadLevel() {
+            try {
+                for(let i=scene.children.length-1; i>=0; i--) { const o = scene.children[i]; if(o.isMesh || o.isGroup || o.isPoints) scene.remove(o); }
+                scene.add(new THREE.AmbientLight(0x606060));
+                
+                monsters = []; objects = []; collidables = []; walls = []; // Reset walls
+                keysHeld = { red: false, blue: false, green: false }; 
+                document.getElementById('battery-count').innerText = `[${batteryCount}]`; // (NUEVO)
+                isFirstPerson = false;
+                particleSystem = null; 
+
+                updateKeyHUD();
+                mazeSize = 11 + (level * 2);
+                document.getElementById('level-display').innerText = level;
+                
+                generateMaze(); 
+                createPlayer(); 
+                spawnLevelContent(); 
+                spawnMonsters();
+                initParticles();
+
+                // --- NUEVO: Configurar el PRIMER sonido ambiente ---
+                // El primer sonido sonará entre 20 y 50 segundos después de iniciar el nivel.
+                // Usamos performance.now() para sincronizarlo con el tiempo del motor.
+                nextAmbienceTime = performance.now() + 20000 + (Math.random() * 30000);
+                // --------------------------------------------------
+
+            } catch(e) { logError("Level Error: " + e.message); }
+        }
+
+        // 1. Función constructora: Crea la apariencia del monstruo (basada en tu código original)
+        function createMonsterMesh() {
+            const grp = new THREE.Group();
+
+            // Cuerpo (Icosahedro negro)
+            grp.add(new THREE.Mesh(
+                new THREE.IcosahedronGeometry(0.5),
+                new THREE.MeshBasicMaterial({color: 0x000000})
+            ));
+
+            // Pinchos (Conos rojos)
+            for(let j = 0; j < 8; j++){
+                const s = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.05, 1.5, 4),
+                    new THREE.MeshBasicMaterial({color: 0x550000})
+                );
+                s.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                grp.add(s);
+            }
+
+            // Luz roja
+            grp.add(new THREE.PointLight(0xff0000, 1.5, 6));
+
+            // Propiedades adicionales para el "Sistema Inteligente"
+            grp.userData = { type: 'monster', id: Math.random() }; // Útil para colisiones o IA futura
+
+            return grp;
+        }
+
+        // 2. Función de Lógica: Decide cuántos y dónde (Sistema de Niveles)
+        function spawnMonsters() {
+            // Cálculo de dificultad basado en tu fórmula original
+            const count = Math.min(6, 1 + Math.floor(level / 1.5));
+
+            for(let i = 0; i < count; i++) {
+                // AQUÍ es donde antes fallaba: ahora llamamos a la función que definimos arriba
+                const monster = createMonsterMesh();
+
+                // Lógica de posicionamiento en el laberinto
+                let mx, mz;
+                do {
+                    mx = Math.floor(Math.random() * mazeSize);
+                    mz = Math.floor(Math.random() * mazeSize);
+                // Evita muros (0) y evita aparecer muy cerca del inicio (mx < 5)
+                } while(mazeGrid[mx][mz] !== 0 || mx < 5);
+
+                // Asignar posición real en el mundo 3D
+                monster.position.set(mx * WALL_SIZE, 1.5, mz * WALL_SIZE);
+
+                // Guardar en array y añadir a escena
+                monsters.push(monster);
+                scene.add(monster);
+            }
+        }
+
+        function createPlayer() {
+            player = new THREE.Group();
+            
+            // CAMBIO 1: Colores mucho más oscuros para compensar la luz ambiental fuerte
+            // Traje: De 0x1a2b50 a 0x050810 (Azul casi negro)
+            const matSuit = new THREE.MeshStandardMaterial({color: 0x050810, roughness: 0.7}); 
+            // Piel: De 0xffccaa a 0x553322 (Parece marrón, pero con la luz se verá piel normal)
+            const matSkin = new THREE.MeshStandardMaterial({color: 0x553322, roughness: 0.8});
+            
+            playerBodyGroup = new THREE.Group();
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), matSuit); b.position.y = 0.9;
+            const h = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), matSkin); h.position.y = 1.55;
+            playerBodyGroup.add(b, h);
+            player.add(playerBodyGroup);
+            
+            playerPivot = new THREE.Group(); playerPivot.position.y = 1.6; player.add(playerPivot);
+            
+            // La cámara se ajusta sola con updateCameraCollision, no tocamos aquí
+            camera.position.set(0.9, 0.4, 2.8);
+            playerPivot.add(camera); 
+            
+            flashModel = new THREE.Group();
+            
+            // CAMBIO 2: Oscurecer también la linterna
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25, 8), new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.8}));
+            handle.rotation.x = Math.PI/2; handle.position.z = 0.125;
+            
+            const head = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.08, 12), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.7, roughness: 0.3}));
+            head.rotation.x = Math.PI/2; head.position.z = -0.04;
+            
+            flashLens = new THREE.Mesh(new THREE.CircleGeometry(0.05, 12), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            flashLens.position.z = -0.081;
+            
+            flashModel.add(handle, head, flashLens);
+            flashModel.position.set(0.6, -0.5, 0.5); 
+
+            flashlight = new THREE.SpotLight(0xffffff, 2.5, 20, Math.PI/5, 0.4, 1);
+            flashlight.position.set(0, 0, -0.1); flashlight.target.position.set(0, 0, -5); 
+            flashModel.add(flashlight); flashModel.add(flashlight.target);
+            playerPivot.add(flashModel); 
+
+            player.position.set(1*WALL_SIZE, 0, 1*WALL_SIZE); scene.add(player);
+        }
+
+        function updateKeyHUD() { document.getElementById('hud-keys').innerHTML = ''; }
+
+        function checkWallCollision(pos) {
+            const x = Math.round(pos.x / WALL_SIZE); const z = Math.round(pos.z / WALL_SIZE);
+            if(x < 0 || x >= mazeSize || z < 0 || z >= mazeSize) return true;
+            return (mazeGrid[x][z] === 1);
+        }
+
+        // --- NEW: ADVANCED COLLISION LOGIC ---
+        function checkDetailedCollision(pos) {
+            // Check center
+            if(checkWallCollision(pos)) return true;
+            
+            // Check small radius (padding) for 1st person no-clip
+            const padding = 0.3;
+            if(checkWallCollision({x: pos.x + padding, z: pos.z})) return true;
+            if(checkWallCollision({x: pos.x - padding, z: pos.z})) return true;
+            if(checkWallCollision({x: pos.x, z: pos.z + padding})) return true;
+            if(checkWallCollision({x: pos.x, z: pos.z - padding})) return true;
+            
+            return false;
+        }
+
+        // --- NEW: CAMERA COLLISION LOGIC ---
+        function updateCameraCollision() {
+            if(isFirstPerson) {
+                camera.position.set(0, 0, 0);
+                return;
+            }
+
+            // 1. Calcular posición ideal en el mundo
+            const pivotWorldPos = new THREE.Vector3();
+            playerPivot.getWorldPosition(pivotWorldPos);
+
+            const idealLocal = defaultThirdPersonPos.clone();
+            const idealWorldPos = idealLocal.clone().applyMatrix4(playerPivot.matrixWorld);
+
+            // 2. Vector dirección desde la cabeza (pivot) hacia la cámara
+            const dir = new THREE.Vector3().subVectors(idealWorldPos, pivotWorldPos);
+            const dist = dir.length();
+            dir.normalize();
+
+            // 3. Raycast
+            cameraRaycaster.set(pivotWorldPos, dir);
+            // Solo chocar con paredes, no monstruos ni objetos
+            const intersects = cameraRaycaster.intersectObjects(walls);
+
+            let finalDist = dist;
+
+            if (intersects.length > 0 && intersects[0].distance < dist) {
+                // Si golpeamos una pared, acercar la cámara al punto de impacto (con un pequeño margen de 0.2)
+                finalDist = Math.max(0.2, intersects[0].distance - 0.2);
+            }
+
+            // 4. Mapear de vuelta a posición local simple (escalando el vector original)
+            const ratio = finalDist / dist;
+            camera.position.set(
+                defaultThirdPersonPos.x * ratio,
+                defaultThirdPersonPos.y * ratio, 
+                defaultThirdPersonPos.z * ratio
+            );
+        }
+
+        function showMessage(msg) { const el = document.getElementById('message-area'); el.innerText = msg; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 2000); }
+        function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+
+        function playSound(type, param) {
+            if(!audioCtx || (!isGameActive && type !== 'scream' && type !== 'unlock' && type !== 'open' && type !== 'locked')) return;
+    
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                    // Si existe el sistema nuevo, úsalo. Si no, usa el viejo (seguridad).
+                    if(masterFilter) {
+                        gain.connect(masterFilter); 
+                    } else {
+                        gain.connect(audioCtx.destination);
+                    }
+
+                if(type === 'click') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now); osc.stop(now + 0.05);
+                }
+                else if(type === 'scream') {
+                    const osc2 = audioCtx.createOscillator(); osc2.type = 'square';
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                    osc2.frequency.setValueAtTime(750, now); osc2.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+                    osc2.connect(gain); osc2.start(now); osc2.stop(now + 0.5);
+                    gain.gain.setValueAtTime(0.4, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now); osc.stop(now + 0.5);
+                }
+                else if(type === 'battery') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(1200, now + 0.2);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                }
+                else if(type === 'step') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(80, now); osc.frequency.exponentialRampToValueAtTime(10, now + 0.05);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now); osc.stop(now + 0.05);
+                }
+                else if(type === 'heartbeat') {
+                    // Hacemos el sonido MUY CORTO (staccato) para que pueda repetirse rápido
+                    // Frecuencia: Golpe seco de graves
+                    osc.frequency.setValueAtTime(90, now); 
+                    osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.05); // Cae en 50ms
+                    
+                    // Volumen
+                    gain.gain.setValueAtTime(param, now); 
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05); // Silencio en 50ms
+                    
+                    osc.start(now); 
+                    osc.stop(now + 0.06); // Cortamos totalmente a los 60ms
+                }
+                else if(type === 'item') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(1200, now+0.3);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.3);
+                    osc.start(now); osc.stop(now+0.3);
+                }
+                else if(type === 'locked') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now+0.2);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.2);
+                    osc.start(now); osc.stop(now+0.2);
+                }
+                
+                else if(type === 'reload') {
+                // Sonido mecánico de recarga (Slide + Click)
+                osc.type = 'square';
+                // Parte 1: Deslizar
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                
+                // Parte 2: Clic final (simulado con un segundo oscilador corto si fuera complejo, 
+                // pero aquí usaremos el mismo parando y arrancando rápido o simplificando)
+                // Para no complicar el código, haremos un sonido seco y rápido:
+                osc.frequency.setValueAtTime(600, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                
+                osc.start(now);
+                osc.stop(now + 0.3);
+                }
+
+                else if(type === 'unlock') {
+                // Sonido metálico seco (Girar llave)
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.1); // "Clack"
+                
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                
+                osc.start(now); osc.stop(now + 0.15);
+}
+            } catch(e){}
+        }
+        // Pega esto DEBAJO de la función playSound(...)
+
+        function playAmbientHorror() {
+            if(!audioCtx || !isGameActive) return;
+            
+            // Elegir tipo: 'metallic' (tren frenando/grito mecánico) o 'drone' (viento grave)
+            const type = Math.random() > 0.6 ? 'metallic' : 'drone';
+            const now = audioCtx.currentTime;
+
+            // Nodo Maestro de Ganancia para este efecto (Fade In / Fade Out)
+            const masterGain = audioCtx.createGain();
+            if(masterFilter) {
+                masterGain.connect(masterFilter);
+            } else {
+                masterGain.connect(audioCtx.destination);
+            }
+            
+            // Volumen bajo: queremos atmósfera, no romper tímpanos.
+            masterGain.gain.setValueAtTime(0, now);
+            masterGain.gain.linearRampToValueAtTime(0.2, now + 2); // Tarda 2s en subir
+            masterGain.gain.linearRampToValueAtTime(0, now + 8);    // Tarda 8s en desaparecer
+
+            if (type === 'metallic') {
+                // --- SONIDO DE CUEVA / CHIRRIDO ---
+                // Usamos Modulación de Frecuencia (FM) para crear disonancia
+                const carrier = audioCtx.createOscillator();
+                const modulator = audioCtx.createOscillator();
+                const modGain = audioCtx.createGain();
+
+                // El modulador "vibra" la frecuencia del portador
+                modulator.frequency.value = 50 + Math.random() * 100; // Vibración rápida y caótica
+                modulator.type = 'sawtooth'; // Diente de sierra = sonido áspero
+                
+                modGain.gain.value = 300 + Math.random() * 500; // Cuánto distorsiona
+                
+                carrier.frequency.value = 200 + Math.random() * 300; // Tono base (medio-agudo)
+                carrier.type = 'sine'; // Base suave, pero distorsionada por el modulador
+
+                // Conexiones: Modulador -> Gain -> Frecuencia Carrier -> Master -> Salida
+                modulator.connect(modGain);
+                modGain.connect(carrier.frequency);
+                carrier.connect(masterGain);
+
+                carrier.start(now);
+                modulator.start(now);
+                carrier.stop(now + 8);
+                modulator.stop(now + 8);
+
+            } else {
+                // --- SONIDO DRONE / LAMENTO ---
+                // Dos osciladores de baja frecuencia desafinados entre sí
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                
+                osc1.type = 'triangle';
+                osc2.type = 'sine';
+                
+                // Frecuencias graves
+                const baseFreq = 50 + Math.random() * 30;
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                // Efecto caída (pitch drop)
+                osc1.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + 8); 
+                
+                osc2.frequency.setValueAtTime(baseFreq + 5, now); // Desafinado 5Hz
+                
+                osc1.connect(masterGain);
+                osc2.connect(masterGain);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 8);
+                osc2.stop(now + 8);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isPaused) {
+                renderer.render(scene, camera);
+                return; // ¡IMPORTANTE! Cortamos aquí para que no siga ejecutando nada más.
+            }
+            // -----------------------
+
+            if(!isGameActive) { renderer.render(scene, camera); return; }
+            if(!isGameActive) { renderer.render(scene, camera); return; }
+
+            const time = performance.now();
+            const delta = (time - lastTime) / 1000;
+            lastTime = time;
+            accumulator += Math.min(delta, 0.1);
+
+            if (keys.f && !fPressed) { isFlashlightOn = !isFlashlightOn; fPressed = true; playSound('click'); }
+            if (!keys.f) fPressed = false;
+
+            if (keys.v && !vPressed) { 
+                isFirstPerson = !isFirstPerson; vPressed = true; 
+                if(isFirstPerson) {
+                    // camera position is now handled in updateCameraCollision
+                    if(playerBodyGroup) playerBodyGroup.visible = false;
+                    flashModel.position.set(0.15, -0.25, -0.45); flashModel.rotation.set(0, 0, 0); 
+                } else {
+                    // camera position is now handled in updateCameraCollision
+                    if(playerBodyGroup) playerBodyGroup.visible = true;
+                    flashModel.position.set(0.6, -0.5, 0.5);
+                }
+            }
+            if (!keys.v) vPressed = false;
+
+            // --- LÓGICA DE LINTERNA MEJORADA CON FLASHAZO ---
+            if (isFlashlightOn && battery > 0) {
+                battery -= delta * 2.5; 
+
+                // Si estamos en medio de un flashazo (tiempo actual < fin del flash)
+                if (performance.now() < flashEndTime) {
+                    flashlight.intensity = 50.0; // ¡POTENCIA CEGADORA!
+                } else {
+                    // Intensidad normal (8.0) con parpadeo si hay poca batería
+                    flashlight.intensity = 8.0;
+                    if(battery < 15 && Math.random() > 0.9) flashlight.intensity = 0.2;
+                }
+
+            if(flashLens) flashLens.visible = true; 
+            } else { 
+            flashlight.intensity = 0; 
+            if(battery <= 0) isFlashlightOn = false;
+            if(flashLens) flashLens.visible = false; 
+            }
+            // ------------------------------------------------
+            if (battery < 0) battery = 0;
+            const batBar = document.getElementById('battery-bar');
+            batBar.style.width = battery + '%';
+            
+            // Cambio de color: Amarillo normal -> Rojo alerta
+            if (battery < 20) {
+                batBar.style.backgroundColor = '#ff0000'; // Rojo
+                batBar.style.boxShadow = 'inset 0 0 10px rgba(255, 0, 0, 0.8)'; // Resplandor rojo
+            } else {
+                batBar.style.backgroundColor = '#ffcc00'; // Amarillo
+                batBar.style.boxShadow = 'inset 0 0 10px rgba(255, 200, 0, 0.5)'; // Resplandor amarillo
+            }
+            // --- NUEVO: NIEBLA DINÁMICA (La linterna corta la niebla) ---
+            // Si linterna ON -> 25 (Lejos). Si linterna OFF -> 12 (Normal/Original)
+            const targetFogDist = (isFlashlightOn && battery > 0) ? 40 : 20;
+            
+            // Interpolación (Lerp) para que la niebla se mueva suavemente, no de golpe.
+            if(scene.fog) {
+                scene.fog.far += (targetFogDist - scene.fog.far) * 0.1;
+            }
+            // ------------------------------------------------------------
+
+            while (accumulator >= TIME_STEP) { updatePhysics(TIME_STEP); accumulator -= TIME_STEP; }
+            
+            updateParticles(delta);
+            updateCameraCollision(); // NEW: Call camera collision every frame
+            
+            // --- NUEVO: Head Bobbing SUAVE + SONIDO DE PASOS ---
+            const isMoving = (keys.w || keys.a || keys.s || keys.d);
+    
+            if(isMoving) {
+                // Si corre (Shift), el ciclo es más rápido
+                const bobSpeed = isRunningState ? 0.02 : 0.015;
+                const bobAmt = isFirstPerson ? 0.02 : 0.05; 
+                
+                // Calculamos la posición de la onda senoidal (sube y baja)
+                const bobCycle = Math.sin(time * bobSpeed);
+                
+                // Aplicamos el movimiento a la cámara
+                playerPivot.position.y = 1.6 + bobCycle * bobAmt;
+                
+                // --- LOGICA DE SONIDO DE PASOS ---
+                // Si la cámara está en la parte más baja del ciclo (< -0.9) Y ha pasado tiempo suficiente
+                // (Usamos 350ms para caminar y 250ms para correr aprox para que no suene como ametralladora)
+                const stepCooldown = isRunningState ? 250 : 350;
+                
+                if (bobCycle < -0.9 && (time - lastStepTime > stepCooldown)) {
+                    playSound('step');
+                    lastStepTime = time;
+                }
+
+                // Movimiento del arma
+                if(flashModel) {
+                    const weaponBobX = Math.cos(time * 0.008) * (isFirstPerson ? 0.01 : 0.02);
+                    const weaponBobY = Math.sin(time * bobSpeed + 0.5) * (isFirstPerson ? 0.02 : 0.03);
+                    
+                    flashModel.position.x = (isFirstPerson ? 0.15 : 0.6) + weaponBobX;
+                    flashModel.position.y = (isFirstPerson ? -0.25 : -0.5) + weaponBobY;
+                    flashModel.rotation.x = weaponBobY;
+                }
+            } else {
+                // Respiración (Idle) - Sin sonido de pasos
+                playerPivot.position.y = 1.6 + Math.sin(time * 0.003) * 0.01;
+                if(flashModel) {
+                    flashModel.position.x = isFirstPerson ? 0.15 : 0.6;
+                    flashModel.position.y = (isFirstPerson ? -0.25 : -0.5) + Math.sin(time * 0.003) * 0.005;
+                    flashModel.rotation.x = 0;
+                }
+            }
+
+
+            // --- NUEVO: Efecto visual de velocidad (FOV Dinámico) ---
+            // Si corremos y nos movemos, el ángulo de visión sube a 75, si no, vuelve a 60
+            const isRunning = keys.shift && stamina > 0 && (keys.w || keys.a || keys.s || keys.d);
+            const targetFOV = isRunningState ? 72 : 60;
+
+            // "Lerp" (Interpolación lineal): Hacemos que el cambio sea suave, no brusco
+            camera.fov += (targetFOV - camera.fov) * 0.1;
+            camera.updateProjectionMatrix(); // ¡Necesario para aplicar cambios de cámara!
+            
+            // --- DISTORSIÓN DE PÁNICO (LÓGICA FINAL) ---
+    
+            // 1. Buscamos al monstruo más cercano
+            let distToMonster = 999;
+            monsters.forEach(m => {
+
+                // --- NUEVO: REVISAR SI EL MONSTRUO ESTÁ ATURDIDO ---
+                // Si tiene un tiempo de aturdimiento y ese tiempo no ha pasado todavía...
+                if (m.userData.stunnedUntil && performance.now() < m.userData.stunnedUntil) {
+                    // Efecto visual: Vibrar/Temblar en el sitio
+                    m.rotation.z = (Math.random() - 0.5) * 0.5;
+                    m.children[0].material.color.setHex(0xffffff); // Se pone blanco del susto (opcional)
+                    return; // ¡IMPORTANTE! Esto evita que ejecute el código de moverse y atacar
+                } else {
+                    // Si ya pasó el susto, vuelve a la normalidad
+                    m.children[0].material.color.setHex(0x000000); // Vuelve a negro
+                }
+                // ---------------------------------------------------
+
+                const d = player.position.distanceTo(m.position);
+                if(d < distToMonster) distToMonster = d;
+            });
+
+            // 2. CONDICIÓN: 
+            // - Tienes que estar corriendo (Shift + Estamina)
+            // - Y el monstruo tiene que estar CERCA (menos de 8 metros)
+            // - Si el monstruo está LEJOS, esto será 'false' y no habrá temblor.
+            const isPanicRun = isRunningState && (distToMonster < 8.0);
+
+            if (isPanicRun) {
+                // Intensidad SUAVE (Reducida para no marear)
+                // tilt 0.02 (antes era 0.04)
+                const tilt = Math.sin(time * 0.02) * 0.02; 
+                const shake = (Math.random() - 0.5) * 0.005;
+
+                camera.rotation.z = tilt + shake;
+            } else {
+                // Si el monstruo se aleja o dejas de correr, la cámara se endereza suavemente
+                camera.rotation.z = camera.rotation.z * 0.9;
+            }
+            // ------------------------------------------
+
+            updateParticles(delta);
+            updateCameraCollision();
+
+            // --- LÓGICA DE CORAZÓN: PÁNICO EXTREMO V2 ---
+    
+            // 1. Buscar al monstruo más cercano
+            let heartDist = 999;
+            monsters.forEach(m => {
+                const d = player.position.distanceTo(m.position);
+                if(d < heartDist) heartDist = d;
+            });
+
+            const HEAR_RANGE = 20.0; 
+
+            if (heartDist < HEAR_RANGE && isGameActive) {
+                
+                let intensity = 1.0 - (heartDist / HEAR_RANGE);
+                intensity = Math.max(0, Math.min(1, intensity));
+
+                // 3. Calcular Velocidad (Intervalo en ms)
+                // Lejos: 1200ms
+                // Cerca: 60ms (EXTREMADAMENTE RÁPIDO - Casi un zumbido)
+                const minInterval = 60; 
+                const maxInterval = 1200;
+                
+                // Curva cúbica extrema: se mantiene lento hasta que está MUY cerca
+                const currentInterval = maxInterval - (Math.pow(intensity, 3) * (maxInterval - minInterval));
+
+                if (performance.now() > nextHeartbeatTime) {
+                    playSound('heartbeat', 0.8); // Volumen Fijo
+                    nextHeartbeatTime = performance.now() + currentInterval;
+                }
+            }
+            // --------------------------------------------
+
+            // --- DENTRO DE FUNCTION ANIMATE(), ANTES DEL RENDER ---
+
+            // Lógica de Ambiente Aleatorio
+            // Si el tiempo actual supera el tiempo programado...
+            if (time > nextAmbienceTime) {
+                playAmbientHorror();
+                
+                // Programar el siguiente sonido:
+                // Aleatorio entre 30 y 80 segundos (para que no sea cansino)
+                nextAmbienceTime = time + 30000 + (Math.random() * 50000);
+                
+                // (Opcional) Debug para ver cuándo ocurre en la consola
+                // console.log("Ambiente sonando..."); 
+            }
+            // ---------------------------------
+
+// -----------------------------------------------------
+
+            renderer.render(scene, camera);
+        }
+
+        function updatePhysics(dt) {
+            // --- LÓGICA DE FATIGA NUEVA ---
+            if (stamina <= 0) { stamina = 0; isExhausted = true; }
+            else if (stamina > 25) { isExhausted = false; }
+
+            const isMovingLogic = (keys.w || keys.a || keys.s || keys.d);
+            isRunningState = keys.shift && stamina > 0 && !isExhausted && isMovingLogic;
+
+            let speed = 7.0; 
+            if(isRunningState) { 
+                speed = 12.0; 
+                stamina -= 25 * dt; 
+            }
+            else if (stamina < MAX_STAMINA) { 
+                stamina += 15 * dt; 
+            }
+            const stamBar = document.getElementById('stamina-bar');
+            stamBar.style.width = stamina + '%';
+            
+            if (isExhausted) {
+                // Agotado: Rojo + Brillo Rojo
+                stamBar.style.backgroundColor = '#ff0000';
+                stamBar.style.boxShadow = 'inset 0 0 10px rgba(255, 0, 0, 0.8)';
+            } else {
+                // Normal: Cian + Brillo Cian
+                stamBar.style.backgroundColor = '#00ffff';
+                stamBar.style.boxShadow = 'inset 0 0 10px rgba(0, 255, 255, 0.5)';
+            }
+
+            const dir = new THREE.Vector3();
+            if(keys.w) dir.z = -1; if(keys.s) dir.z = 1; if(keys.a) dir.x = -1; if(keys.d) dir.x = 1;
+            const now = Date.now();
+
+            if(dir.length() > 0) {
+                dir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+                const moveDist = speed * dt;
+                // --- INICIO CODIGO NUEVO: SLIDING (DESLIZAMIENTO) ---
+                // En lugar de calcular una "siguiente posición" absoluta, separamos el movimiento en X y Z
+                const velocity = dir.clone().multiplyScalar(moveDist);
+
+                // 1. Intentar movimiento en el Eje X
+                if (!checkDetailedCollision({ x: player.position.x + velocity.x, z: player.position.z })) {
+                    player.position.x += velocity.x;
+                }
+
+                // 2. Intentar movimiento en el Eje Z
+                if (!checkDetailedCollision({ x: player.position.x, z: player.position.z + velocity.z })) {
+                    player.position.z += velocity.z;
+                }
+
+                // 3. Colisión simple con objetos (Cajas/Obstáculos)
+                // Esto empuja al jugador suavemente si choca con una caja
+                for (let obj of collidables) {
+                    const dx = player.position.x - obj.position.x;
+                    const dz = player.position.z - obj.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist < 1.0) {
+                        const pushDir = new THREE.Vector3(dx, 0, dz).normalize();
+                        // Empujamos al jugador fuera del objeto
+                        player.position.add(pushDir.multiplyScalar(1.0 - dist));
+                    }
+                }
+
+                // Esto evita que atravieses al monstruo, esté aturdido o no.
+                monsters.forEach(m => {
+                    const dx = player.position.x - m.position.x;
+                    const dz = player.position.z - m.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    
+                    // Radio de colisión (0.8 es un buen tamaño para que se sienta sólido)
+                    const bodySize = 0.8; 
+
+                    if (dist < bodySize) {
+                        const pushDir = new THREE.Vector3(dx, 0, dz).normalize();
+                        // Empujamos al jugador hacia atrás (fuera del cuerpo del monstruo)
+                        player.position.add(pushDir.multiplyScalar(bodySize - dist));
+                    }
+                });
+                // --- FIN CODIGO NUEVO ---
+
+            }
+
+            // --- BUCLE IA DEFINITIVO: PATHFINDING + ORGÁNICO + EVASIÓN + KILL FIX ---
+            let closest = 999;
+            const nowTime = performance.now();
+            const timeSec = nowTime * 0.001; 
+
+            monsters.forEach((m, index) => {
+                const distToPlayer = player.position.distanceTo(m.position);
+                if(distToPlayer < closest) closest = distToPlayer;
+
+                // --- A. ANIMACIÓN "VIVA" ---
+                const bobOffset = Math.sin(timeSec * 2 + index) * 0.15; 
+                const swayAmount = Math.sin(timeSec * 3 + index) * 0.1; 
+                const scalePulse = 1.0 + Math.sin(timeSec * 3.5 + index) * 0.05;
+                m.scale.set(scalePulse, scalePulse, scalePulse);
+
+                m.children.forEach((child, childIdx) => {
+                    if(child.geometry && child.geometry.type === 'ConeGeometry') {
+                        child.rotation.x += 0.015 * (childIdx % 2 === 0 ? 1 : -1);
+                        child.rotation.z += 0.01;
+                    }
+                });
+
+                // 1. EFECTO DE ESTÁTICA (INTERFERENCIA DE TV)
+                    // Distancia máxima de efecto: 15 metros.
+                    // Distancia mínima (ruido máximo): 2 metros.
+                    const STATIC_RANGE = 15.0;
+                    let staticIntensity = 0;
+
+                    if (closest < STATIC_RANGE) {
+                        // Cálculo lineal simple: más directo y fuerte
+                        staticIntensity = 1.0 - (closest / STATIC_RANGE);
+                        
+                        // Pequeño boost: aseguramos que siempre haya un mínimo visible si está cerca
+                        // Si está a menos de 5 metros, la intensidad se dispara al máximo rápido
+                        if(closest < 5.0) staticIntensity = 1.0; 
+                    }
+
+                    const noiseDiv = document.getElementById('static-noise');
+                    // Subimos el tope de opacidad de 0.8 a 0.95 (Casi negro total si te atrapa)
+                    if(noiseDiv) noiseDiv.style.opacity = Math.min(0.95, staticIntensity);
+                    // --- AUDIO DINÁMICO (NUEVO) ---
+                    if(masterFilter && droneGain) {
+                
+                        if (closest < 15.0) {
+                            // A. EFECTO DE AHOGO (Mundo)
+                            // Cuanto más cerca, más se tapan los oídos (filtro baja a 200Hz)
+                            const muffledFreq = 200 + (closest / 15.0) * 20000;
+                            masterFilter.frequency.setTargetAtTime(muffledFreq, audioCtx.currentTime, 0.1);
+
+                            // B. EFECTO DE PESADEZ (Drone de Bajos)
+                            // Intensidad basada en cercanía (0.0 a 1.0)
+                            let intensity = 1.0 - (closest / 15.0);
+                            intensity = Math.pow(intensity, 2); // Curva exponencial (sube de golpe al final)
+
+                            // 1. Volumen: Sube hasta 0.6 (Bastante fuerte para que vibre)
+                            droneGain.gain.setTargetAtTime(intensity * 0.6, audioCtx.currentTime, 0.1);
+                            
+                            // 2. Tono: Sube de 40Hz (grave) a 60Hz (tensión) mientras se acerca
+                            // Esto crea esa sensación de "motor acelerando" o peligro inminente
+                            droneOsc.frequency.setTargetAtTime(40 + (intensity * 20), audioCtx.currentTime, 0.1);
+                            
+                            // 3. Apertura del Drone: Lo hacemos un poco más "rugoso" si está muy cerca
+                            droneFilter.frequency.setTargetAtTime(100 + (intensity * 100), audioCtx.currentTime, 0.1);
+
+                        } else {
+                            // RESTAURAR CALMA
+                            masterFilter.frequency.setTargetAtTime(22000, audioCtx.currentTime, 0.5);
+                            droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+                            droneOsc.frequency.setTargetAtTime(40, audioCtx.currentTime, 0.5);
+                        }
+                    }
+                    // -----------------------------
+                    // Efecto rojo de sangre (Danger Overlay) - Lo mantenemos sutil
+                    document.getElementById('danger-overlay').style.opacity = closest < 6 ? (6-closest)/8 : 0;
+
+                // --- B. GESTIÓN DE ATURDIMIENTO ---
+                if (m.userData.stunnedUntil && nowTime < m.userData.stunnedUntil) {
+                    m.position.y = 1.5 + (Math.random()-0.5)*0.2; 
+                    m.children[0].material.color.setHex(0xffffff);
+                    return; 
+                } else {
+                    m.children[0].material.color.setHex(0x000000);
+                }
+
+                // --- C. LÓGICA DE NAVEGACIÓN ---
+                if (distToPlayer < 25) { 
+                    
+                    // 1. Pathfinding 
+                    if (!m.userData.lastPathCalc || nowTime - m.userData.lastPathCalc > 400) {
+                        m.userData.path = findPath(m.position, player.position);
+                        m.userData.lastPathCalc = nowTime;
+                    }
+
+                    // 2. Definir destino inmediato
+                    let finalMoveDir = new THREE.Vector3();
+                    let targetWorldPos = null;
+
+                    if (m.userData.path && m.userData.path.length > 0) {
+                        const targetNode = m.userData.path[0];
+                        targetWorldPos = new THREE.Vector3(targetNode.x * WALL_SIZE, 1.5, targetNode.z * WALL_SIZE);
+
+                        const distToNode = new THREE.Vector2(m.position.x, m.position.z)
+                                           .distanceTo(new THREE.Vector2(targetWorldPos.x, targetWorldPos.z));
+                        if (distToNode < 0.8) { 
+                            m.userData.path.shift();
+                        }
+                    }
+
+                    // 3. Vector de deseo (Hacia nodo o jugador)
+                    const destination = targetWorldPos ? targetWorldPos : player.position;
+                    const desiredDir = new THREE.Vector3().subVectors(destination, m.position).normalize();
+                    finalMoveDir.add(desiredDir); 
+
+                    // 4. Evasión de obstáculos (Repulsión)
+                    collidables.forEach(obj => {
+                        const distToObj = m.position.distanceTo(obj.position);
+                        if (distToObj < 2.5) {
+                            const pushDir = new THREE.Vector3().subVectors(m.position, obj.position);
+                            pushDir.y = 0; 
+                            const force = 3.0 / (distToObj * distToObj); 
+                            pushDir.normalize().multiplyScalar(force);
+                            finalMoveDir.add(pushDir);
+                        }
+                    });
+
+                    finalMoveDir.normalize();
+
+                    // --- D. APLICAR MOVIMIENTO Y EFECTOS ---
+                    const dummy = new THREE.Object3D();
+                    dummy.position.copy(m.position);
+                    dummy.lookAt(m.position.x + finalMoveDir.x, 1.5 + bobOffset, m.position.z + finalMoveDir.z);
+                    m.quaternion.slerp(dummy.quaternion, 0.08); 
+
+                    m.position.y = 1.5 + bobOffset; 
+                    m.rotation.z = swayAmount; 
+
+                    // MOVERSE (Si no está pegado al jugador)
+                    // Usamos 1.2 como "zona de freno" para que no te atraviese visualmente
+                    if (distToPlayer > 1.2) {
+                        m.position.add(finalMoveDir.multiplyScalar(3.5 * dt)); 
+                    }
+
+                    // --- E. CONDICIÓN DE MUERTE (SEPARADA) ---
+                    // Aumentamos el rango a 1.5 para asegurar que te mate aunque haya repulsión
+                    if (distToPlayer < 2.5) {
+                        if(!isGameActive) return;
+                        isGameActive = false;
+                        playSound('scream');
+                        document.getElementById('game-over').classList.remove('hidden');
+                        document.getElementById('final-level').innerText = level;
+                        document.querySelectorAll('.hud-box, #stamina-container, #battery-container, #stamina-label, #battery-label').forEach(el => el.classList.add('hidden'));
+                        document.exitPointerLock();
+                    }
+                }
+            });
+
+            // Efecto de peligro
+            document.getElementById('danger-overlay').style.opacity = closest < 8 ? (8-closest)/8 : 0;
+
+            objects.forEach((o, i) => {
+                const d = player.position.distanceTo(o.position);
+                if(o.userData.type === 'key' && d < 2.0) {
+                    playSound('item'); keysHeld[o.userData.color] = true;
+                    const slot = document.getElementById('slot-'+o.userData.color);
+                    if(slot) { slot.classList.add('has-'+o.userData.color); slot.innerText = "OK"; }
+                    showMessage("LLAVE " + o.userData.color.toUpperCase());
+                    scene.remove(o); objects.splice(i, 1);
+                }
+                if(o.userData.type === 'battery' && d < 2.0) {
+                    playSound('item'); 
+                    
+                    // CAMBIO: En vez de sumar a 'battery', sumamos al inventario
+                    batteryCount++;
+                    document.getElementById('battery-count').innerText = `[${batteryCount}]`;
+                    
+                    showMessage("PILA RECOGIDA [R]"); // Le recordamos al jugador la tecla
+                    scene.remove(o); 
+                    objects.splice(i, 1);
+                }
+                
+                // --- FIX APLICADO AQUÍ (LOGICA PUERTA) ---
+                if(o.userData.type === 'door') {
+                    const dist = player.position.distanceTo(o.position);
+                    
+                    // Distancia de interacción (2.0 metros)
+                    if(dist < 2.0) {
+                        const color = o.userData.color;
+                        // Traducir color para el mensaje
+                        const colorEsp = (color==='red')?'ROJA':(color==='blue')?'AZUL':'VERDE';
+
+                        if(keysHeld[color]) {
+                            // CASO A: TIENES LA LLAVE
+                            showMessage("ABRIR PUERTA " + colorEsp + " [E]");
+                            
+                            // Detectar si presiona E
+                            if(keys.e) {
+                                if(!isGameActive) return;
+                                isGameActive = false; // Pausar controles
+                                
+                                playSound('unlock'); // Sonido Click de la llave
+                                showMessage("ABRIENDO...");
+                                
+                                // Pequeña pausa dramática antes del sonido de puerta
+                                setTimeout(() => {
+                                    // ELIMINADO: playSound('open'); <- Ya no suena el segundo
+                                    document.getElementById('next-level').classList.remove('hidden');
+                                }, 300);
+
+                                // Cargar siguiente nivel
+                                setTimeout(() => { 
+                                    level++; 
+                                    loadLevel(); 
+                                    document.getElementById('next-level').classList.add('hidden'); 
+                                    isGameActive = true; 
+                                }, 2000);
+                            }
+                        } else {
+                            // CASO B: NO TIENES LA LLAVE
+                            
+                            
+                            // Si intenta abrir a la fuerza (Presiona E sin llave)
+                            if(keys.e) {
+                                // AHORA mostramos el mensaje y tocamos el sonido
+                                showMessage("CERRADO - NECESITAS LLAVE");
+                                
+                                const now = Date.now();
+                                if (!o.userData.lastLockedTime || now - o.userData.lastLockedTime > 500) {
+                                    playSound('locked');
+                                    o.userData.lastLockedTime = now;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
