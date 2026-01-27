@@ -1832,7 +1832,16 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 spawnLevelContent(); 
                 spawnMonsters();
                 initParticles();
-
+                // --- CÓDIGO NUEVO ---
+                // Si el jugador ya tiene la linterna, asegúrate de que el HUD de batería sea visible
+                if (hasFlashlight) {
+                    document.getElementById('battery-label').classList.remove('hidden');
+                    document.getElementById('battery-container').classList.remove('hidden');
+                    // Actualizar visualmente la barra inmediatamente
+                    const batBar = document.getElementById('battery-bar');
+                    batBar.style.width = battery + '%';
+                }
+                // --------------------
                 nextAmbienceTime = performance.now() + 20000 + (Math.random() * 30000);
 
             } catch(e) { logError("Level Error: " + e.message); }
@@ -1933,8 +1942,8 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             flashlight.position.set(0, 0, -0.1); flashlight.target.position.set(0, 0, -5); 
             flashModel.add(flashlight); flashModel.add(flashlight.target);
             playerPivot.add(flashModel); 
-            isFlashlightOn = false; 
-            flashModel.visible = false;
+            flashModel.visible = hasFlashlight;
+            isFlashlightOn = (hasFlashlight && isFlashlightOn);
             player.position.set(1*WALL_SIZE, 0, 1*WALL_SIZE); scene.add(player);
         }
 
