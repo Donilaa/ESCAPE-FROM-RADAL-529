@@ -1847,35 +1847,27 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             } catch(e) { logError("Level Error: " + e.message); }
         }
 
-        // 1. Función constructora: Crea la apariencia del monstruo (basada en tu código original)
+        // >>>>>> AQUÍ EMPIEZA EL CAMBIO <<<<<<
+        // 1. Función constructora: Crea la apariencia del monstruo (VERSIÓN BROMA)
         function createMonsterMesh() {
             const grp = new THREE.Group();
 
-            // Cuerpo (Icosahedro negro)
-            grp.add(new THREE.Mesh(
-                new THREE.IcosahedronGeometry(0.5),
-                new THREE.MeshBasicMaterial({color: 0x000000})
-            ));
+            const texture = new THREE.TextureLoader().load('dantemorsilla.png');
+            const material = new THREE.SpriteMaterial({ map: texture, color: 0xffffff });
+            const sprite = new THREE.Sprite(material);
+            
+            sprite.scale.set(2.0, 2.5, 1);
+            sprite.position.y = 0.5;
+            grp.add(sprite);
 
-            // Pinchos (Conos rojos)
-            for(let j = 0; j < 8; j++){
-                const s = new THREE.Mesh(
-                    new THREE.ConeGeometry(0.05, 1.5, 4),
-                    new THREE.MeshBasicMaterial({color: 0x550000})
-                );
-                s.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
-                grp.add(s);
-            }
+            const light = new THREE.PointLight(0xff0000, 2.0, 8);
+            light.position.y = 0.5;
+            grp.add(light);
 
-            // Luz roja
-            grp.add(new THREE.PointLight(0xff0000, 1.5, 6));
-
-            // Propiedades adicionales para el "Sistema Inteligente"
-            grp.userData = { type: 'monster', id: Math.random() }; // Útil para colisiones o IA futura
-
+            grp.userData = { type: 'monster', id: Math.random() }; 
             return grp;
         }
-
+        // >>>>>> AQUÍ TERMINA EL CAMBIO <<<<<<
         // 2. Función de Lógica: Decide cuántos y dónde (Sistema de Niveles)
         function spawnMonsters() {
             // Cálculo de dificultad basado en tu fórmula original
@@ -2776,3 +2768,4 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
     </script>
 </body>
 </html>
+
