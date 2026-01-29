@@ -1852,19 +1852,35 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         function createMonsterMesh() {
             const grp = new THREE.Group();
 
+            // Asegúrate de que el nombre coincida exactamente con tu archivo subido
             const texture = new THREE.TextureLoader().load('dantemorsilla.png');
-            const material = new THREE.SpriteMaterial({ map: texture, color: 0xffffff });
+            
+            const material = new THREE.SpriteMaterial({ 
+                map: texture, 
+                color: 0xffffff, // Blanco para que se vean los colores originales
+                transparent: true,
+                fog: false // <--- ¡LA SOLUCIÓN! Esto evita que se vea negra.
+            });
+            
             const sprite = new THREE.Sprite(material);
             
-            sprite.scale.set(2.0, 2.5, 1);
-            sprite.position.y = 0.5;
+            // --- TAMAÑO GIGANTE ---
+            // Aumentamos los números: 4.5 de ancho y 6.0 de alto.
+            // (Puedes poner números más grandes si quieres que sea aún más terrorífico)
+            sprite.scale.set(4.5, 6.0, 1);
+            
+            // Lo subimos (eje Y) para que la cara flote a buena altura y no arrastre
+            sprite.position.y = 2.5;
+
             grp.add(sprite);
 
+            // Luz roja (opcional, le da un borde rojo diabólico si está cerca de paredes)
             const light = new THREE.PointLight(0xff0000, 2.0, 8);
             light.position.y = 0.5;
             grp.add(light);
 
             grp.userData = { type: 'monster', id: Math.random() }; 
+
             return grp;
         }
         // >>>>>> AQUÍ TERMINA EL CAMBIO <<<<<<
@@ -2768,4 +2784,5 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
     </script>
 </body>
 </html>
+
 
