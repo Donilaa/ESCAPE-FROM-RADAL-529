@@ -583,6 +583,7 @@
         const FLOOR_HEIGHT = 5;
         let numFloors = 1;
         let staircaseData = null;
+        let ceilingBulbs = [];
         let isGameActive = false;
         let isPaused = false;
         let keysHeld = { red: false, blue: false, green: false };
@@ -1747,6 +1748,15 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     if(fC.length > 0) { const p = fC[Math.floor(Math.random()*fC.length)]; createTrash(p.x, p.z, 0); }
                 }
 
+                // Generar circuito de ampolletas en pasillos (Piso 0)
+                for(let x=1; x<mazeSize-1; x+=2) {
+                    for(let z=1; z<mazeSize-1; z+=2) {
+                        if(mazeGrid[x][z] === 0) {
+                            createCeilingBulb(x, z, 0);
+                        }
+                    }
+                }
+
                 if(wC.length > 0) { 
                     const p = wC[Math.floor(Math.random()*wC.length)]; 
                     createDoor(p.x, p.z, exitColor, true, 0); 
@@ -1798,6 +1808,18 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 }
                 for(let i=0; i<10; i++) {
                     if(cand1.f.length > 0) { const p = cand1.f[Math.floor(Math.random()*cand1.f.length)]; createTrash(p.x, p.z, 1); }
+                }
+
+                // Circuito de ampolletas en ambos pisos
+                for(let x=1; x<mazeSize-1; x+=2) {
+                    for(let z=1; z<mazeSize-1; z+=2) {
+                        if(mazeGrid[0][x][z] === 0 && !(staircaseData && x===staircaseData.x && (z===staircaseData.zStart||z===staircaseData.zEnd))) {
+                            createCeilingBulb(x, z, 0);
+                        }
+                        if(mazeGrid[1][x][z] === 0 && !(staircaseData && x===staircaseData.x && z===staircaseData.zEnd)) {
+                            createCeilingBulb(x, z, 1);
+                        }
+                    }
                 }
                 for(let i=0; i<2; i++) {
                     if(cand1.f.length > 0) { const p = cand1.f.splice(Math.floor(Math.random()*cand1.f.length), 1)[0]; createBattery(p.x, p.z, 1); }
@@ -1985,6 +2007,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 // --------------------------------
 
                 monsters = []; objects = []; collidables = []; walls = [];
+                ceilingBulbs = [];
                 keysHeld = { red: false, blue: false, green: false }; 
                 document.getElementById('battery-count').innerText = `[${batteryCount}]`; 
                 isFirstPerson = false;
@@ -2014,7 +2037,133 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             } catch(e) { logError("Level Error: " + e.message); }
         }
 
-                // --- MODELADO DE ESCALERA INDUSTRIAL METÁLICA ---
+                        // --- CIRCUITO DE AMPOLLETAS / LUCES DE TECHO ---
+        function createCeilingBulb(x, z, floorIdx) {
+            const grp = new THREE.Group();
+            const ceilingY = (floorIdx + 1) * FLOOR_HEIGHT;
+            const posX = x * WALL_SIZE;
+            const posZ = z * WALL_SIZE;
+
+            // 65% de las ampolletas están rotas/quemadas
+            const isBroken = Math.random() < 0.65;
+
+            // Cable que desciende del techo
+            const cord = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.015, 0.015, 1.2, 5),
+                new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
+            );
+            cord.position.set(0, ceilingY - 0.6, 0);
+            grp.add(cord);
+
+            // Casquillo de latón oxidado
+            const socket = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06, 0.05, 0.14, 8),
+                new THREE.MeshStandardMaterial({ color: 0x3a3020, metalness: 0.7, roughness: 0.5 })
+            );
+            socket.position.set(0, ceilingY - 1.2, 0);
+            grp.add(socket);
+
+            // Ampolleta / Bombilla de cristal
+            const bulbMat = new THREE.MeshStandardMaterial({
+                color: isBroken ? 0x1c1c1c : 0xffea9f,
+                emissive: isBroken ? 0x000000 : 0xff9900,
+                emissiveIntensity: isBroken ? 0 : 0.6,
+                roughness: isBroken ? 0.9 : 0.2,
+                transparent: true,
+                opacity: isBroken ? 0.9 : 0.85
+            });
+            const bulbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), bulbMat);
+            bulbMesh.position.set(0, ceilingY - 1.3, 0);
+            grp.add(bulbMesh);
+
+            // Luz puntual (mantenida en escena con intensity=0 si rota para no recompilar shaders)
+            const baseIntensity = 0.8 + Math.random() * 0.7;
+            const light = new THREE.PointLight(0xffb84d, isBroken ? 0 : baseIntensity, 7.5);
+            light.position.set(0, ceilingY - 1.35, 0);
+            grp.add(light);
+
+            grp.position.set(posX, 0, posZ);
+
+            grp.userData = {
+                type: 'ceiling_bulb',
+                isBroken: isBroken,
+                baseIntensity: baseIntensity,
+                flickerType: Math.floor(Math.random() * 3), // 0: zumbido leve, 1: chispazo errático, 2: casi apagada con ráfagas
+                flickerSpeed: 8 + Math.random() * 18,
+                flickerOffset: Math.random() * 60,
+                canExplode: (!isBroken && Math.random() < 0.28), // 28% de las funcionales explotan como jumpscare
+                hasExploded: false,
+                light: light,
+                bulbMesh: bulbMesh
+            };
+
+            scene.add(grp);
+            ceilingBulbs.push(grp);
+        }
+
+        function updateCeilingBulbs(timeSec) {
+            for (let i = 0; i < ceilingBulbs.length; i++) {
+                const b = ceilingBulbs[i];
+                const d = b.userData;
+                if (d.isBroken || d.hasExploded) continue;
+
+                // Chequeo de Jumpscare (Explosión al pasar cerca del jugador)
+                if (d.canExplode && !d.hasExploded) {
+                    const bulbWorldPos = new THREE.Vector3();
+                    b.getWorldPosition(bulbWorldPos);
+                    const distToPlayer = player.position.distanceTo(bulbWorldPos);
+
+                    if (distToPlayer < 3.0) {
+                        d.hasExploded = true;
+                        playSound('bulb_pop');
+
+                        // Destello violento inicial
+                        d.light.intensity = 7.0;
+                        d.bulbMesh.material.emissive.setHex(0xffffff);
+                        d.bulbMesh.material.emissiveIntensity = 2.0;
+
+                        // Temblor jumpscare en la cámara si está muy cerca
+                        camera.rotation.z += (Math.random() - 0.5) * 0.05;
+
+                        // Apagar definitivamente tras 70ms
+                        setTimeout(() => {
+                            d.light.intensity = 0;
+                            d.bulbMesh.material.color.setHex(0x111111);
+                            d.bulbMesh.material.emissive.setHex(0x000000);
+                            d.bulbMesh.material.emissiveIntensity = 0;
+                        }, 70);
+
+                        continue;
+                    }
+                }
+
+                // Dinámica de Parpadeo Variable
+                let intensity = d.baseIntensity;
+                if (d.flickerType === 0) {
+                    // Tipo 0: Parpadeo sutil con zumbido
+                    const wave = Math.sin(timeSec * d.flickerSpeed + d.flickerOffset);
+                    intensity = d.baseIntensity * (0.85 + wave * 0.18);
+                } else if (d.flickerType === 1) {
+                    // Tipo 1: Chispazos rápidos con falsos contactos
+                    const wave = Math.sin(timeSec * d.flickerSpeed + d.flickerOffset);
+                    const glitch = (wave > 0.05) && (Math.random() > 0.1);
+                    intensity = glitch ? (d.baseIntensity * (0.9 + Math.random() * 0.3)) : 0.05;
+                } else {
+                    // Tipo 2: Oscuridad intermitente (períodos apagada y ráfagas súbitas)
+                    const cycle = (timeSec * 1.5 + d.flickerOffset) % 6;
+                    if (cycle < 1.4) {
+                        intensity = (Math.random() > 0.35) ? (d.baseIntensity * 1.3) : 0.04;
+                    } else {
+                        intensity = 0.02;
+                    }
+                }
+
+                d.light.intensity = intensity;
+                d.bulbMesh.material.emissiveIntensity = (intensity > 0.15) ? 0.6 : 0.05;
+            }
+        }
+
+        // --- MODELADO DE ESCALERA INDUSTRIAL METÁLICA ---
         function createIndustrialStairs(x, zStart, zEnd, yStart, yEnd) {
             const stairsGrp = new THREE.Group();
             const matSteel = new THREE.MeshStandardMaterial({ color: 0x22252a, metalness: 0.85, roughness: 0.3 });
@@ -2313,6 +2462,32 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
         function updateKeyHUD() { document.getElementById('hud-keys').innerHTML = ''; }
 
+        function checkMonsterCollision(pos) {
+            const f = (pos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
+            const radius = 0.45;
+            const testPoints = [
+                { x: pos.x, z: pos.z },
+                { x: pos.x + radius, z: pos.z },
+                { x: pos.x - radius, z: pos.z },
+                { x: pos.x, z: pos.z + radius },
+                { x: pos.x, z: pos.z - radius }
+            ];
+
+            for (let p of testPoints) {
+                const gx = Math.round(p.x / WALL_SIZE);
+                const gz = Math.round(p.z / WALL_SIZE);
+                if (gx < 0 || gx >= mazeSize || gz < 0 || gz >= mazeSize) return true;
+
+                if (staircaseData && gx === staircaseData.x && (gz === staircaseData.zStart || gz === staircaseData.zEnd)) {
+                    continue;
+                }
+
+                const grid = (numFloors > 1) ? mazeGrid[f] : mazeGrid;
+                if (grid && grid[gx] && grid[gx][gz] === 1) return true;
+            }
+            return false;
+        }
+
         function checkWallCollision(pos) {
             const f = (pos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
             const x = Math.round(pos.x / WALL_SIZE);
@@ -2475,6 +2650,40 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 osc.stop(now + 0.3);
                 }
 
+                else if(type === 'bulb_pop') {
+                    // Chispa eléctrica súbita
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(1400, now);
+                    osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+
+                    // Ruido blanco de cristal estallando
+                    try {
+                        const bufferSize = Math.floor(audioCtx.sampleRate * 0.18);
+                        const noiseBuf = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                        const data = noiseBuf.getChannelData(0);
+                        for(let i=0; i<bufferSize; i++) {
+                            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
+                        }
+                        const noiseSource = audioCtx.createBufferSource();
+                        noiseSource.buffer = noiseBuf;
+                        const filter = audioCtx.createBiquadFilter();
+                        filter.type = 'highpass';
+                        filter.frequency.value = 1600;
+                        const noiseGain = audioCtx.createGain();
+                        noiseGain.gain.setValueAtTime(0.28, now);
+                        noiseGain.gain.exponentialRampToValueAtTime(0.005, now + 0.18);
+
+                        noiseSource.connect(filter);
+                        filter.connect(noiseGain);
+                        if (masterFilter) noiseGain.connect(masterFilter);
+                        else noiseGain.connect(audioCtx.destination);
+                        noiseSource.start(now);
+                    } catch(e){}
+                }
                 else if(type === 'unlock') {
                 // Sonido metálico seco (Girar llave)
                 osc.type = 'square';
@@ -2645,6 +2854,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             
             updateParticles(delta);
             updateCameraCollision(); // NEW: Call camera collision every frame
+            updateCeilingBulbs(time * 0.001);
             
             // --- NUEVO: Head Bobbing SUAVE + SONIDO DE PASOS ---
             const isMoving = (keys.w || keys.a || keys.s || keys.d);
@@ -3010,7 +3220,20 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     m.rotation.z = swayAmount; 
 
                     if (distToPlayer > 1.2) {
-                        m.position.add(finalMoveDir.multiplyScalar(3.5 * dt)); 
+                        const moveDist = 3.5 * dt;
+                        const moveDelta = finalMoveDir.clone().multiplyScalar(moveDist);
+
+                        // 1. Deslizamiento en X con colisión de pared
+                        const nextX = { x: m.position.x + moveDelta.x, y: m.position.y, z: m.position.z };
+                        if (!checkMonsterCollision(nextX)) {
+                            m.position.x += moveDelta.x;
+                        }
+
+                        // 2. Deslizamiento en Z con colisión de pared
+                        const nextZ = { x: m.position.x, y: m.position.y, z: m.position.z + moveDelta.z };
+                        if (!checkMonsterCollision(nextZ)) {
+                            m.position.z += moveDelta.z;
+                        }
                     }
 
                     // Condición de muerte
