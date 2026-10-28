@@ -472,7 +472,7 @@
             <button class="menu-btn" onclick="location.reload()">VOLVER AL MENÚ</button>
         </div>
     <div id="pause-menu" class="hidden">
-        <h1 class="pause-title">BOLACA</h1>
+        <h1 class="pause-title">PAUSA</h1>
         <div class="pause-subtitle">// TRANSMISIÓN DETENIDA //</div>
         
         <button class="pause-btn" id="btn-resume">CONTINUAR</button>
@@ -603,6 +603,7 @@
         let bloodRuneMaterials = [];
 
         let mazeGrid = []; let monsters = []; let objects = []; let collidables = [];
+        let domStaminaBar, domStaminaContainer, domStaminaLabel, domBatteryBar, domBatteryContainer, domBatteryLabel, domBatteryCount, domDangerOverlay, domStaticNoise, domMessageArea;
         let mousePitch = 0;
         let matWall, matFloor, matCeiling, matWoodFrame, matWoodPanel, matTrashMat;
 
@@ -1016,6 +1017,17 @@
 
         function init() {
             try {
+                domStaminaBar = document.getElementById('stamina-bar');
+                domStaminaContainer = document.getElementById('stamina-container');
+                domStaminaLabel = document.getElementById('stamina-label');
+                domBatteryBar = document.getElementById('battery-bar');
+                domBatteryContainer = document.getElementById('battery-container');
+                domBatteryLabel = document.getElementById('battery-label');
+                domBatteryCount = document.getElementById('battery-count');
+                domDangerOverlay = document.getElementById('danger-overlay');
+                domStaticNoise = document.getElementById('static-noise');
+                domMessageArea = document.getElementById('message-area');
+
                 initMaterials();
                 scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); 
                 scene.fog = new THREE.Fog(0x000000, 5, 30); 
@@ -1127,23 +1139,25 @@
                         lastFlashTime = now; // Guardamos el momento del disparo
                         flashEndTime = now + 200; // Duración del brillo visual
 
-                        // --- SONIDO NUEVO: DESCARGA ELÉCTRICA (Oscilador) ---
-                        // Creamos un sonido agudo que baja de tono rápidamente
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        
-                        osc.type = 'sawtooth'; // Sonido "áspero" eléctrico
-                        osc.frequency.setValueAtTime(800, audioCtx.currentTime); // Empieza agudo
-                        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3); // Baja rápido
-                        
-                        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                        
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.3);
+                        // --- SONIDO: DESCARGA ELÉCTRICA (Reutilizando AudioContext) ---
+                        if (audioCtx) {
+                            if (audioCtx.state === 'suspended') audioCtx.resume();
+                            const osc = audioCtx.createOscillator();
+                            const gain = audioCtx.createGain();
+                            
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                            
+                            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                            
+                            osc.connect(gain);
+                            if (masterFilter) gain.connect(masterFilter);
+                            else gain.connect(audioCtx.destination);
+                            osc.start();
+                            osc.stop(audioCtx.currentTime + 0.3);
+                        }
                         // ----------------------------------------------------
 
                         // Lógica de Aturdir
@@ -1212,27 +1226,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     }
                 });
                 
-                // --- NUEVO: RE-CAPTURAR MOUSE AL HACER CLICK ---
                 
-                // 1. Re-capturar mouse al hacer click (SOLO SI ESTAMOS VIVOS)
-                document.addEventListener('click', (e) => {
-                    // Si clicamos un botón (como REINTENTAR), ignoramos esto para no bloquear
-                    if(e.target.tagName === 'BUTTON') return;
-
-                    const startHidden = document.getElementById('start-screen').classList.contains('hidden');
-                    const gameOverHidden = document.getElementById('game-over').classList.contains('hidden');
-                    const nextLevelHidden = document.getElementById('next-level').classList.contains('hidden');
-
-                    // Solo pedimos el mouse si: 
-                    // 1. Ya pasamos el menú de inicio
-                    // 2. NO estamos en Game Over
-                    // 3. NO estamos en la transición de nivel
-                    // 4. El mouse no está ya capturado
-                    if (startHidden && gameOverHidden && nextLevelHidden && 
-                        document.pointerLockElement !== document.body) {
-                        document.body.requestPointerLock();
-                    }
-                });
 
                 // 2. Sincronizar estado (BLINDADO CONTRA LA MUERTE)
                 document.addEventListener('pointerlockchange', () => {
@@ -1405,6 +1399,43 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                  if(positions[i+1] < 0) positions[i+1] = WALL_HEIGHT * 1.5;
              }
              particleGeo.attributes.position.needsUpdate = true;
+        }
+
+                // --- OPTIMIZACIÓN ZERO-JANK: RECOLECCIÓN DE OBJETOS SIN RECOMPILACIÓN DE SHADERS ---
+        function collectObject(o, index) {
+            o.userData.collected = true;
+            o.traverse(child => {
+                if (child.isMesh) child.visible = false;
+                if (child.isLight) {
+                    child.intensity = 0;
+                    child.distance = 0;
+                }
+            });
+            o.position.set(0, -9999, 0);
+            objects.splice(index, 1);
+        }
+
+        function disposeHierarchy(node) {
+            if (!node) return;
+            if (node.children) {
+                for (let i = node.children.length - 1; i >= 0; i--) {
+                    disposeHierarchy(node.children[i]);
+                }
+            }
+            if (node.geometry) {
+                node.geometry.dispose();
+            }
+            if (node.material) {
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(m => {
+                        if (m.map) m.map.dispose();
+                        m.dispose();
+                    });
+                } else {
+                    if (node.material.map) node.material.map.dispose();
+                    node.material.dispose();
+                }
+            }
         }
 
         // --- OBJETOS ---
@@ -1808,7 +1839,10 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 // Limpieza de objetos previos
                 for(let i=scene.children.length-1; i>=0; i--) { 
                     const o = scene.children[i]; 
-                    if(o.isMesh || o.isGroup || o.isPoints || o.isLight) scene.remove(o); 
+                    if(o.isMesh || o.isGroup || o.isPoints || o.isLight) {
+                        disposeHierarchy(o);
+                        scene.remove(o);
+                    }
                 }
 
                 // --- CORRECCIÓN DE BRILLO AQUÍ ---
@@ -1942,7 +1976,12 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             flashlight.position.set(0, 0, -0.1); flashlight.target.position.set(0, 0, -5); 
             flashModel.add(flashlight); flashModel.add(flashlight.target);
             playerPivot.add(flashModel); 
-            flashModel.visible = hasFlashlight;
+            // Mantener flashModel y flashlight presentes para evitar recompilación de shaders
+            flashModel.visible = true;
+            handle.visible = hasFlashlight;
+            head.visible = hasFlashlight;
+            flashLens.visible = hasFlashlight;
+            flashlight.intensity = (hasFlashlight && isFlashlightOn) ? 8.0 : 0.0;
             isFlashlightOn = (hasFlashlight && isFlashlightOn);
             player.position.set(1*WALL_SIZE, 0, 1*WALL_SIZE); scene.add(player);
         }
@@ -2010,7 +2049,14 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             );
         }
 
-        function showMessage(msg) { const el = document.getElementById('message-area'); el.innerText = msg; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 2000); }
+        function showMessage(msg) {
+            const el = domMessageArea || document.getElementById('message-area');
+            if (!el) return;
+            el.textContent = msg;
+            el.style.opacity = 1;
+            if (showMessage.timer) clearTimeout(showMessage.timer);
+            showMessage.timer = setTimeout(() => { if (el) el.style.opacity = 0; }, 2000);
+        }
         function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
         function playSound(type, param) {
@@ -2193,7 +2239,6 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             // -----------------------
 
             if(!isGameActive) { renderer.render(scene, camera); return; }
-            if(!isGameActive) { renderer.render(scene, camera); return; }
 
             const time = performance.now();
             const delta = (time - lastTime) / 1000;
@@ -2363,8 +2408,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             }
             // ------------------------------------------
 
-            updateParticles(delta);
-            updateCameraCollision();
+            
 
             // --- LÓGICA DE CORAZÓN: PÁNICO EXTREMO V2 ---
     
@@ -2385,7 +2429,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 // 3. Calcular Velocidad (Intervalo en ms)
                 // Lejos: 1200ms
                 // Cerca: 60ms (EXTREMADAMENTE RÁPIDO - Casi un zumbido)
-                const minInterval = 60; 
+                const minInterval = 180; 
                 const maxInterval = 1200;
                 
                 // Curva cúbica extrema: se mantiene lento hasta que está MUY cerca
@@ -2501,7 +2545,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
             }
 
-            // --- BUCLE IA DEFINITIVO: PATHFINDING + ORGÁNICO + EVASIÓN + KILL FIX ---
+            // --- BUCLE IA: PATHFINDING + ANIMACIÓN + MOVIMIENTO + KILL ---
             let closest = 999;
             const nowTime = performance.now();
             const timeSec = nowTime * 0.001; 
@@ -2510,7 +2554,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 const distToPlayer = player.position.distanceTo(m.position);
                 if(distToPlayer < closest) closest = distToPlayer;
 
-                // --- A. ANIMACIÓN "VIVA" ---
+                // A. Animación orgánica
                 const bobOffset = Math.sin(timeSec * 2 + index) * 0.15; 
                 const swayAmount = Math.sin(timeSec * 3 + index) * 0.1; 
                 const scalePulse = 1.0 + Math.sin(timeSec * 3.5 + index) * 0.05;
@@ -2523,78 +2567,22 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     }
                 });
 
-                // 1. EFECTO DE ESTÁTICA (INTERFERENCIA DE TV)
-                    // Distancia máxima de efecto: 15 metros.
-                    // Distancia mínima (ruido máximo): 2 metros.
-                    const STATIC_RANGE = 15.0;
-                    let staticIntensity = 0;
-
-                    if (closest < STATIC_RANGE) {
-                        // Cálculo lineal simple: más directo y fuerte
-                        staticIntensity = 1.0 - (closest / STATIC_RANGE);
-                        
-                        // Pequeño boost: aseguramos que siempre haya un mínimo visible si está cerca
-                        // Si está a menos de 5 metros, la intensidad se dispara al máximo rápido
-                        if(closest < 5.0) staticIntensity = 1.0; 
-                    }
-
-                    const noiseDiv = document.getElementById('static-noise');
-                    // Subimos el tope de opacidad de 0.8 a 0.95 (Casi negro total si te atrapa)
-                    if(noiseDiv) noiseDiv.style.opacity = Math.min(0.95, staticIntensity);
-                    // --- AUDIO DINÁMICO (NUEVO) ---
-                    if(masterFilter && droneGain) {
-                
-                        if (closest < 15.0) {
-                            // A. EFECTO DE AHOGO (Mundo)
-                            // Cuanto más cerca, más se tapan los oídos (filtro baja a 200Hz)
-                            const muffledFreq = 200 + (closest / 15.0) * 20000;
-                            masterFilter.frequency.setTargetAtTime(muffledFreq, audioCtx.currentTime, 0.1);
-
-                            // B. EFECTO DE PESADEZ (Drone de Bajos)
-                            // Intensidad basada en cercanía (0.0 a 1.0)
-                            let intensity = 1.0 - (closest / 15.0);
-                            intensity = Math.pow(intensity, 2); // Curva exponencial (sube de golpe al final)
-
-                            // 1. Volumen: Sube hasta 0.6 (Bastante fuerte para que vibre)
-                            droneGain.gain.setTargetAtTime(intensity * 0.6, audioCtx.currentTime, 0.1);
-                            
-                            // 2. Tono: Sube de 40Hz (grave) a 60Hz (tensión) mientras se acerca
-                            // Esto crea esa sensación de "motor acelerando" o peligro inminente
-                            droneOsc.frequency.setTargetAtTime(40 + (intensity * 20), audioCtx.currentTime, 0.1);
-                            
-                            // 3. Apertura del Drone: Lo hacemos un poco más "rugoso" si está muy cerca
-                            droneFilter.frequency.setTargetAtTime(100 + (intensity * 100), audioCtx.currentTime, 0.1);
-
-                        } else {
-                            // RESTAURAR CALMA
-                            masterFilter.frequency.setTargetAtTime(22000, audioCtx.currentTime, 0.5);
-                            droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
-                            droneOsc.frequency.setTargetAtTime(40, audioCtx.currentTime, 0.5);
-                        }
-                    }
-                    // -----------------------------
-                    // Efecto rojo de sangre (Danger Overlay) - Lo mantenemos sutil
-                    document.getElementById('danger-overlay').style.opacity = closest < 6 ? (6-closest)/8 : 0;
-
-                // --- B. GESTIÓN DE ATURDIMIENTO ---
+                // B. Gestión de aturdimiento
                 if (m.userData.stunnedUntil && nowTime < m.userData.stunnedUntil) {
                     m.position.y = 1.5 + (Math.random()-0.5)*0.2; 
-                    m.children[0].material.color.setHex(0xffffff);
+                    if (m.children[0] && m.children[0].material) m.children[0].material.color.setHex(0xffffff);
                     return; 
                 } else {
-                    m.children[0].material.color.setHex(0x000000);
+                    if (m.children[0] && m.children[0].material) m.children[0].material.color.setHex(0x000000);
                 }
 
-                // --- C. LÓGICA DE NAVEGACIÓN ---
+                // C. Lógica de navegación
                 if (distToPlayer < 25) { 
-                    
-                    // 1. Pathfinding 
                     if (!m.userData.lastPathCalc || nowTime - m.userData.lastPathCalc > 400) {
                         m.userData.path = findPath(m.position, player.position);
                         m.userData.lastPathCalc = nowTime;
                     }
 
-                    // 2. Definir destino inmediato
                     let finalMoveDir = new THREE.Vector3();
                     let targetWorldPos = null;
 
@@ -2609,12 +2597,11 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                         }
                     }
 
-                    // 3. Vector de deseo (Hacia nodo o jugador)
                     const destination = targetWorldPos ? targetWorldPos : player.position;
                     const desiredDir = new THREE.Vector3().subVectors(destination, m.position).normalize();
                     finalMoveDir.add(desiredDir); 
 
-                    // 4. Evasión de obstáculos (Repulsión)
+                    // Evasión de obstáculos
                     collidables.forEach(obj => {
                         const distToObj = m.position.distanceTo(obj.position);
                         if (distToObj < 2.5) {
@@ -2628,7 +2615,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                     finalMoveDir.normalize();
 
-                    // --- D. APLICAR MOVIMIENTO Y EFECTOS ---
+                    // Aplicar rotación y movimiento
                     const dummy = new THREE.Object3D();
                     dummy.position.copy(m.position);
                     dummy.lookAt(m.position.x + finalMoveDir.x, 1.5 + bobOffset, m.position.z + finalMoveDir.z);
@@ -2637,14 +2624,11 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     m.position.y = 1.5 + bobOffset; 
                     m.rotation.z = swayAmount; 
 
-                    // MOVERSE (Si no está pegado al jugador)
-                    // Usamos 1.2 como "zona de freno" para que no te atraviese visualmente
                     if (distToPlayer > 1.2) {
                         m.position.add(finalMoveDir.multiplyScalar(3.5 * dt)); 
                     }
 
-                    // --- E. CONDICIÓN DE MUERTE (SEPARADA) ---
-                    // Aumentamos el rango a 1.5 para asegurar que te mate aunque haya repulsión
+                    // Condición de muerte
                     if (distToPlayer < 2.5) {
                         if(!isGameActive) return;
                         isGameActive = false;
@@ -2652,124 +2636,137 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                         document.getElementById('game-over').classList.remove('hidden');
                         document.getElementById('final-level').innerText = level;
                         document.querySelectorAll('.hud-box, #stamina-container, #stamina-label').forEach(el => el.classList.remove('hidden'));
-                        document.exitPointerLock();
+                        try { document.exitPointerLock(); } catch(e) {}
                     }
                 }
             });
 
-            // Efecto de peligro
-            document.getElementById('danger-overlay').style.opacity = closest < 8 ? (8-closest)/8 : 0;
+            // --- EFECTOS GLOBALES DE PELIGRO Y AUDIO (Ejecutados una sola vez fuera del bucle de monstruos) ---
+            const STATIC_RANGE = 15.0;
+            let staticIntensity = 0;
+            if (closest < STATIC_RANGE) {
+                staticIntensity = 1.0 - (closest / STATIC_RANGE);
+                if(closest < 5.0) staticIntensity = 1.0; 
+            }
+            const noiseDiv = domStaticNoise || document.getElementById('static-noise');
+            if(noiseDiv) noiseDiv.style.opacity = Math.min(0.95, staticIntensity);
 
-            objects.forEach((o, i) => {
+            if(masterFilter && droneGain && audioCtx) {
+                if (closest < 15.0) {
+                    const muffledFreq = 200 + (closest / 15.0) * 20000;
+                    masterFilter.frequency.setTargetAtTime(muffledFreq, audioCtx.currentTime, 0.1);
+
+                    let intensity = 1.0 - (closest / 15.0);
+                    intensity = Math.pow(intensity, 2);
+                    droneGain.gain.setTargetAtTime(intensity * 0.6, audioCtx.currentTime, 0.1);
+                    droneOsc.frequency.setTargetAtTime(40 + (intensity * 20), audioCtx.currentTime, 0.1);
+                    droneFilter.frequency.setTargetAtTime(100 + (intensity * 100), audioCtx.currentTime, 0.1);
+                } else {
+                    masterFilter.frequency.setTargetAtTime(22000, audioCtx.currentTime, 0.5);
+                    droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+                    droneOsc.frequency.setTargetAtTime(40, audioCtx.currentTime, 0.5);
+                }
+            }
+
+            const dangerEl = domDangerOverlay || document.getElementById('danger-overlay');
+            if(dangerEl) dangerEl.style.opacity = closest < 8 ? (8 - closest) / 8 : 0;
+
+            // --- INTERACCIÓN Y RECOLECCIÓN DE OBJETOS (Zero-Jank & Bucle Seguro Inverso) ---
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const o = objects[i];
+                if (!o || o.userData.collected) continue;
                 const d = player.position.distanceTo(o.position);
+
                 if(o.userData.type === 'key' && d < 2.0) {
-                    playSound('item'); keysHeld[o.userData.color] = true;
-                    const slot = document.getElementById('slot-'+o.userData.color);
-                    if(slot) { slot.classList.add('has-'+o.userData.color); slot.innerText = "OK"; }
-                    showMessage("LLAVE " + o.userData.color.toUpperCase());
-                    scene.remove(o); objects.splice(i, 1);
-                }
-                if(o.userData.type === 'battery' && d < 2.0) {
                     playSound('item'); 
-                    
-                    // CAMBIO: En vez de sumar a 'battery', sumamos al inventario
-                    batteryCount++;
-                    document.getElementById('battery-count').innerText = `[${batteryCount}]`;
-                    
-                    showMessage("PILA RECOGIDA [R]"); // Le recordamos al jugador la tecla
-                    scene.remove(o); 
-                    objects.splice(i, 1);
+                    keysHeld[o.userData.color] = true;
+                    const slot = document.getElementById('slot-' + o.userData.color);
+                    if(slot) { slot.classList.add('has-' + o.userData.color); slot.innerText = "OK"; }
+                    showMessage("LLAVE " + o.userData.color.toUpperCase());
+                    collectObject(o, i);
                 }
-                
-                // --- LÓGICA PARA RECOGER LINTERNA ---
-                if(o.userData.type === 'item_flashlight' && d < 1.5) {
+                else if(o.userData.type === 'battery' && d < 2.0) {
+                    playSound('item'); 
+                    batteryCount++;
+                    const batCounter = domBatteryCount || document.getElementById('battery-count');
+                    if(batCounter) batCounter.innerText = `[${batteryCount}]`;
+                    showMessage("PILA RECOGIDA [R]");
+                    collectObject(o, i);
+                }
+                else if(o.userData.type === 'item_flashlight' && d < 1.5) {
                     playSound('item'); 
                     hasFlashlight = true; 
-                    
-                    // 1. Calculamos la carga aleatoria
                     battery = 30 + (Math.random() * 70);
                     
-                    // 2. Quitamos la animación temporalmente para que no "baje" visualmente
-                    const batBar = document.getElementById('battery-bar');
-                    batBar.style.transition = 'none'; 
+                    const batBar = domBatteryBar || document.getElementById('battery-bar');
+                    if(batBar) {
+                        batBar.style.transition = 'none'; 
+                        batBar.style.width = battery + '%';
+                        setTimeout(() => { if(batBar) batBar.style.transition = 'width 0.2s linear'; }, 50);
+                    }
                     
-                    // 3. Aplicamos el valor
-                    batBar.style.width = battery + '%';
-                    
-                    // 4. Mostramos el HUD
-                    document.getElementById('battery-label').classList.remove('hidden');
-                    document.getElementById('battery-container').classList.remove('hidden');
-
-                    // 5. Devolvemos la animación después de un instante para que los gastos futuros sí se vean fluidos
-                    setTimeout(() => {
-                        batBar.style.transition = 'width 0.2s linear';
-                    }, 50);
+                    const batLbl = domBatteryLabel || document.getElementById('battery-label');
+                    const batCnt = domBatteryContainer || document.getElementById('battery-container');
+                    if(batLbl) batLbl.classList.remove('hidden');
+                    if(batCnt) batCnt.classList.remove('hidden');
 
                     isFlashlightOn = true;
-                    if(flashModel) flashModel.visible = true;
+                    if(flashModel) {
+                        flashModel.visible = true;
+                        flashModel.traverse(child => { if(child.isMesh) child.visible = true; });
+                    }
                     if(flashlight) flashlight.intensity = 8.0;
                     
                     showMessage("LINTERNA RECOGIDA [F]");
-                    scene.remove(o); 
-                    objects.splice(i, 1);
+                    collectObject(o, i);
                 }
-
-
-                // --- FIX APLICADO AQUÍ (LOGICA PUERTA) ---
-                if(o.userData.type === 'door') {
-                    const dist = player.position.distanceTo(o.position);
-                    
-                    // Distancia de interacción (2.0 metros)
-                    if(dist < 2.0) {
+                else if(o.userData.type === 'door') {
+                    if(d < 2.0) {
                         const color = o.userData.color;
-                        // Traducir color para el mensaje
                         const colorEsp = (color==='red')?'ROJA':(color==='blue')?'AZUL':'VERDE';
 
                         if(keysHeld[color]) {
-                            // CASO A: TIENES LA LLAVE
                             showMessage("ABRIR PUERTA " + colorEsp + " [E]");
-                            
-                            // Detectar si presiona E
                             if(keys.e) {
                                 if(!isGameActive) return;
-                                isGameActive = false; // Pausar controles
+                                isGameActive = false;
                                 
-                                playSound('unlock'); // Sonido Click de la llave
+                                playSound('unlock');
                                 showMessage("ABRIENDO...");
                                 
-                                // Pequeña pausa dramática antes del sonido de puerta
                                 setTimeout(() => {
-                                    // ELIMINADO: playSound('open'); <- Ya no suena el segundo
                                     document.getElementById('next-level').classList.remove('hidden');
                                 }, 300);
 
-                                // Cargar siguiente nivel
                                 setTimeout(() => { 
                                     level++; 
+                                    if (level > 5) {
+                                        document.getElementById('next-level').classList.add('hidden');
+                                        const vicScreen = document.getElementById('victory-screen');
+                                        if (vicScreen) vicScreen.classList.remove('hidden');
+                                        document.querySelectorAll('.hud-box, #stamina-container, #stamina-label, #battery-label, #battery-container').forEach(el => el.classList.add('hidden'));
+                                        try { document.exitPointerLock(); } catch(e) {}
+                                        isGameActive = false;
+                                        return;
+                                    }
                                     loadLevel(); 
                                     document.getElementById('next-level').classList.add('hidden'); 
                                     isGameActive = true; 
                                 }, 2000);
                             }
                         } else {
-                            // CASO B: NO TIENES LA LLAVE
-                            
-                            
-                            // Si intenta abrir a la fuerza (Presiona E sin llave)
                             if(keys.e) {
-                                // AHORA mostramos el mensaje y tocamos el sonido
                                 showMessage("CERRADO - NECESITAS LLAVE");
-                                
-                                const now = Date.now();
-                                if (!o.userData.lastLockedTime || now - o.userData.lastLockedTime > 500) {
+                                const nowLock = Date.now();
+                                if (!o.userData.lastLockedTime || nowLock - o.userData.lastLockedTime > 500) {
                                     playSound('locked');
-                                    o.userData.lastLockedTime = now;
+                                    o.userData.lastLockedTime = nowLock;
                                 }
                             }
                         }
                     }
                 }
-            });
+            }
         }
 
         init();
