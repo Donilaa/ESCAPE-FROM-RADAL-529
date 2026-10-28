@@ -2252,7 +2252,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     attempts++;
                 } while((!grid[mx] || grid[mx][mz] !== 0 || (floorIdx === 0 && (mx < 5 && mz < 5))) && attempts < 200);
 
-                const baseY = 1.5 + floorIdx * FLOOR_HEIGHT;
+                const baseY = floorIdx * FLOOR_HEIGHT;
                 monster.position.set(mx * WALL_SIZE, baseY, mz * WALL_SIZE);
                 monster.userData.floor = floorIdx;
 
@@ -2879,19 +2879,19 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     }
                 }
 
-                // Esto evita que atravieses al monstruo, esté aturdido o no.
+                // Esto evita que atravieses al monstruo en el mismo piso
                 monsters.forEach(m => {
-                    const dx = player.position.x - m.position.x;
-                    const dz = player.position.z - m.position.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-                    
-                    // Radio de colisión (0.8 es un buen tamaño para que se sienta sólido)
-                    const bodySize = 0.8; 
+                    const dy = Math.abs(player.position.y - m.position.y);
+                    if (dy < 2.0) {
+                        const dx = player.position.x - m.position.x;
+                        const dz = player.position.z - m.position.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+                        const bodySize = 0.8; 
 
-                    if (dist < bodySize) {
-                        const pushDir = new THREE.Vector3(dx, 0, dz).normalize();
-                        // Empujamos al jugador hacia atrás (fuera del cuerpo del monstruo)
-                        player.position.add(pushDir.multiplyScalar(bodySize - dist));
+                        if (dist < bodySize) {
+                            const pushDir = new THREE.Vector3(dx, 0, dz).normalize();
+                            player.position.add(pushDir.multiplyScalar(bodySize - dist));
+                        }
                     }
                 });
                 // --- FIN CODIGO NUEVO ---
@@ -2926,7 +2926,8 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                 // B. Gestión de aturdimiento
                 if (m.userData.stunnedUntil && nowTime < m.userData.stunnedUntil) {
-                    m.position.y += (Math.random()-0.5)*0.15; 
+                    const groundY = (m.userData.floor || 0) * FLOOR_HEIGHT;
+                    m.position.y = groundY + Math.abs(Math.random()-0.5)*0.08; 
                     if (m.userData.limbs) {
                         m.userData.limbs.headGroup.rotation.x = (Math.random()-0.5)*0.6;
                         m.userData.limbs.armL.rotation.z = -0.6 + (Math.random()-0.5)*0.4;
@@ -2947,7 +2948,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                     if (m.userData.path && m.userData.path.length > 0) {
                         const targetNode = m.userData.path[0];
-                        const nodeY = 1.5 + (targetNode.f || 0) * FLOOR_HEIGHT;
+                        const nodeY = (targetNode.f || 0) * FLOOR_HEIGHT;
                         targetWorldPos = new THREE.Vector3(targetNode.x * WALL_SIZE, nodeY, targetNode.z * WALL_SIZE);
 
                         const distToNode = new THREE.Vector3(m.position.x, m.position.y, m.position.z)
@@ -2975,13 +2976,37 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                     finalMoveDir.normalize();
 
-                    // Aplicar rotación y movimiento
+                    // Aplicar rotación
                     const dummy = new THREE.Object3D();
                     dummy.position.copy(m.position);
-                    dummy.lookAt(m.position.x + finalMoveDir.x, 1.5 + bobOffset, m.position.z + finalMoveDir.z);
+                    dummy.lookAt(m.position.x + finalMoveDir.x, m.position.y, m.position.z + finalMoveDir.z);
                     m.quaternion.slerp(dummy.quaternion, 0.08); 
 
-                    m.position.y = 1.5 + bobOffset; 
+                    // --- CÁLCULO DE SUELO REAL PARA QUE EL MONSTRUO NO LEVITE ---
+                    let groundY = (m.userData.floor || 0) * FLOOR_HEIGHT;
+                    if (numFloors > 1 && staircaseData) {
+                        const sPosX = staircaseData.x * WALL_SIZE;
+                        const minZ = Math.min(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE - (WALL_SIZE * 0.45);
+                        const maxZ = Math.max(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE + (WALL_SIZE * 0.45);
+                        const inStairX = Math.abs(m.position.x - sPosX) < (WALL_SIZE * 0.45);
+                        const inStairZ = (m.position.z >= minZ && m.position.z <= maxZ);
+
+                        if (inStairX && inStairZ) {
+                            const prog = (m.position.z - minZ) / (maxZ - minZ);
+                            groundY = THREE.MathUtils.clamp(prog * FLOOR_HEIGHT, 0, FLOOR_HEIGHT);
+                            m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
+                        } else {
+                            groundY = (m.position.y >= FLOOR_HEIGHT * 0.5) ? FLOOR_HEIGHT : 0.0;
+                            m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
+                        }
+                    } else {
+                        groundY = 0.0;
+                        m.userData.floor = 0;
+                    }
+
+                    // Pies firmemente sobre el suelo con sutil paso biomecánico
+                    const footStepBob = Math.abs(Math.sin(timeSec * 4 + index)) * 0.06;
+                    m.position.y = groundY + footStepBob; 
                     m.rotation.z = swayAmount; 
 
                     if (distToPlayer > 1.2) {
