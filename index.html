@@ -495,6 +495,7 @@
             <h1 class="title-main">ESCAPE FROM<br>RADAL 529</h1>
             
             <button class="pause-btn" id="btn-play-game">INICIAR MISIÓN</button>
+            <button class="pause-btn" id="btn-show-levels" style="color: #ff9900; border-left-color: #ff9900;">MODO PRUEBA (SELECTOR DE NIVEL)</button>
             <button class="pause-btn" id="btn-show-controls">PROTOCOLO DE CONTROL</button>
             
             <div style="margin-top: 40px; color: #666; font-family: 'PixelFont'; font-size: 10px; letter-spacing: 1px;">
@@ -523,6 +524,20 @@
             </p>
 
             <button class="pause-btn" id="btn-back-menu" style="margin-top: 20px; text-align: center;">VOLVER</button>
+        </div>
+
+        <div id="levels-panel" style="display: none; flex-direction: column; align-items: center; max-width: 500px; width: 90%;">
+            <h2 style="font-family: 'Black Ops One'; color: #ff9900; font-size: 32px; margin-bottom: 20px; text-shadow: 2px 2px 0 #000;">
+                MODO PRUEBA
+            </h2>
+            <div style="background: rgba(0,0,0,0.85); padding: 20px; border: 1px solid #444; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;">
+                <button class="pause-btn test-lvl-btn" data-lvl="1" style="width: 100%; font-size: 18px;">NIVEL 1 - 1 PISO (INICIO)</button>
+                <button class="pause-btn test-lvl-btn" data-lvl="2" style="width: 100%; font-size: 18px;">NIVEL 2 - 1 PISO (OSCURIDAD)</button>
+                <button class="pause-btn test-lvl-btn" data-lvl="3" style="width: 100%; font-size: 18px; color: #00ffaa; border-left-color: #00ffaa;">NIVEL 3 - 2 PISOS (ESCALERA METÁLICA)</button>
+                <button class="pause-btn test-lvl-btn" data-lvl="4" style="width: 100%; font-size: 18px; color: #00ffaa; border-left-color: #00ffaa;">NIVEL 4 - 2 PISOS (COMPLEJO INDUSTRIAL)</button>
+                <button class="pause-btn test-lvl-btn" data-lvl="5" style="width: 100%; font-size: 18px; color: #ff4444; border-left-color: #ff4444;">NIVEL 5 - 2 PISOS (FINAL / ESCAPE)</button>
+            </div>
+            <button class="pause-btn" id="btn-back-levels" style="margin-top: 20px; text-align: center;">VOLVER</button>
         </div>
 
         <div class="version-tag">V1.4 FINAL</div>
@@ -565,6 +580,9 @@
         let accumulator = 0; let lastTime = 0;
         let nextHeartbeatTime = 0; // <--- AGREGAR ESTO
         let level = 1; let mazeSize = 11;
+        const FLOOR_HEIGHT = 5;
+        let numFloors = 1;
+        let staircaseData = null;
         let isGameActive = false;
         let isPaused = false;
         let keysHeld = { red: false, blue: false, green: false };
@@ -771,58 +789,77 @@
             } catch(e) { console.error("Noise Gen Error", e); }
         }
 
-        // --- SISTEMA DE PATHFINDING (BFS) ---
+        // --- SISTEMA DE PATHFINDING MULTICAPA (BFS 3D) ---
         function findPath(startPos, targetPos) {
-            // 1. Convertir posición de mundo (3D) a coordenadas de rejilla (Grid)
+            const sf = (startPos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
+            const tf = (targetPos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
+
             const sx = Math.floor(startPos.x / WALL_SIZE + 0.5);
             const sz = Math.floor(startPos.z / WALL_SIZE + 0.5);
             const tx = Math.floor(targetPos.x / WALL_SIZE + 0.5);
             const tz = Math.floor(targetPos.z / WALL_SIZE + 0.5);
 
-            // Si ya estamos en la misma celda, no hay camino que calcular
-            if(sx === tx && sz === tz) return [];
+            if(sf === tf && sx === tx && sz === tz) return [];
 
-            // 2. Configuración del BFS
-            const queue = [{x: sx, z: sz}];
+            const startKey = `${sf},${sx},${sz}`;
+            const queue = [{ f: sf, x: sx, z: sz }];
             const visited = new Set();
-            visited.add(`${sx},${sz}`);
-            const parents = {}; // Para reconstruir el camino
+            visited.add(startKey);
+            const parents = {};
 
-            const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]; // Abajo, Arriba, Derecha, Izquierda
+            const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
 
             while(queue.length > 0) {
                 const curr = queue.shift();
 
-                // Si llegamos al destino
-                if(curr.x === tx && curr.z === tz) {
+                if(curr.f === tf && curr.x === tx && curr.z === tz) {
                     const path = [];
                     let temp = curr;
-                    while(temp.x !== sx || temp.z !== sz) {
+                    while(temp.f !== sf || temp.x !== sx || temp.z !== sz) {
                         path.push(temp);
-                        const key = `${temp.x},${temp.z}`;
+                        const key = `${temp.f},${temp.x},${temp.z}`;
                         temp = parents[key];
-                        if(!temp) break; 
+                        if(!temp) break;
                     }
-                    return path.reverse(); // Devolvemos el camino desde el monstruo hasta el jugador
+                    return path.reverse();
                 }
 
-                // Explorar vecinos
+                const currentGrid = (numFloors > 1) ? mazeGrid[curr.f] : mazeGrid;
+
+                // 1. Vecinos en el mismo piso
                 for(let d of dirs) {
                     const nx = curr.x + d[0];
                     const nz = curr.z + d[1];
-                    const key = `${nx},${nz}`;
+                    const key = `${curr.f},${nx},${nz}`;
 
-                    // Verificar límites, si es pared (mazeGrid 1 es pared, 0 es suelo) y si ya fue visitado
                     if(nx >= 0 && nx < mazeSize && nz >= 0 && nz < mazeSize && 
-                    mazeGrid[nx][nz] === 0 && !visited.has(key)) {
-                        
+                       currentGrid[nx] && currentGrid[nx][nz] === 0 && !visited.has(key)) {
                         visited.add(key);
                         parents[key] = curr;
-                        queue.push({x: nx, z: nz});
+                        queue.push({ f: curr.f, x: nx, z: nz });
+                    }
+                }
+
+                // 2. Conexión de escalera entre pisos
+                if (numFloors > 1 && staircaseData) {
+                    if (curr.f === 0 && curr.x === staircaseData.x && curr.z === staircaseData.zStart) {
+                        const topKey = `1,${staircaseData.x},${staircaseData.zEnd}`;
+                        if (!visited.has(topKey) && mazeGrid[1][staircaseData.x] && mazeGrid[1][staircaseData.x][staircaseData.zEnd] === 0) {
+                            visited.add(topKey);
+                            parents[topKey] = curr;
+                            queue.push({ f: 1, x: staircaseData.x, z: staircaseData.zEnd });
+                        }
+                    } else if (curr.f === 1 && curr.x === staircaseData.x && curr.z === staircaseData.zEnd) {
+                        const botKey = `0,${staircaseData.x},${staircaseData.zStart}`;
+                        if (!visited.has(botKey) && mazeGrid[0][staircaseData.x] && mazeGrid[0][staircaseData.x][staircaseData.zStart] === 0) {
+                            visited.add(botKey);
+                            parents[botKey] = curr;
+                            queue.push({ f: 0, x: staircaseData.x, z: staircaseData.zStart });
+                        }
                     }
                 }
             }
-            return null; // No hay camino (jugador inalcanzable)
+            return null;
         }
 
         // --- CORE FUNCTIONS ---
@@ -1206,6 +1243,42 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 });
 
                 // 3. Botón VOLVER: Regresa al menú principal
+                // Listeners para Selector de Nivel (Modo Prueba)
+                document.getElementById('btn-show-levels').addEventListener('click', () => {
+                    document.getElementById('menu-main-view').style.display = 'none';
+                    document.getElementById('levels-panel').style.display = 'flex';
+                });
+
+                document.getElementById('btn-back-levels').addEventListener('click', () => {
+                    document.getElementById('levels-panel').style.display = 'none';
+                    document.getElementById('menu-main-view').style.display = 'block';
+                });
+
+                document.querySelectorAll('.test-lvl-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const targetLvl = parseInt(btn.getAttribute('data-lvl')) || 1;
+                        level = targetLvl;
+                        if (level >= 2) {
+                            hasFlashlight = true;
+                            isFlashlightOn = true;
+                            battery = 100;
+                            batteryCount = 2;
+                        }
+                        stopMenuMusic();
+                        isGameActive = true;
+                        document.getElementById('main-menu-layer').style.display = 'none';
+                        document.querySelectorAll('#stamina-container, #stamina-label, .hud-label:not(#battery-label)').forEach(el => el.classList.remove('hidden'));
+                        document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.classList.remove('hidden'));
+                        
+                        try { document.body.requestPointerLock(); } catch(e){}
+                        if(!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                        else if(audioCtx.state === 'suspended') { audioCtx.resume(); }
+                        setupAudioSystem();
+                        lastTime = performance.now();
+                        loadLevel();
+                    });
+                });
+
                 document.getElementById('btn-back-menu').addEventListener('click', () => {
                     document.getElementById('controls-panel').style.display = 'none';
                     document.getElementById('menu-main-view').style.display = 'block';
@@ -1368,14 +1441,15 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             } catch(e) { logError("Init Critical: " + e.message); }
         }
 
-        // --- PARTÍCULAS DENSAS ---
+        // --- PARTÍCULAS DENSAS (SOPORTE MULTIPISO) ---
         function initParticles() {
             const particleCount = 2000; 
             particleGeo = new THREE.BufferGeometry();
             const posArray = new Float32Array(particleCount * 3);
+            const maxH = (numFloors > 1 ? FLOOR_HEIGHT * 2 : WALL_HEIGHT) * 1.2;
             for(let i=0; i<particleCount*3; i+=3) {
                 posArray[i] = (Math.random() - 0.5) * mazeSize * WALL_SIZE * 1.2;
-                posArray[i+1] = Math.random() * WALL_HEIGHT * 1.5;
+                posArray[i+1] = Math.random() * maxH;
                 posArray[i+2] = (Math.random() - 0.5) * mazeSize * WALL_SIZE * 1.2;
             }
             particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
@@ -1391,12 +1465,13 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
              if(!particleSystem || !particleGeo) return;
              const positions = particleGeo.attributes.position.array;
              const time = Date.now() * 0.001;
+             const maxH = (numFloors > 1 ? FLOOR_HEIGHT * 2 : WALL_HEIGHT) * 1.2;
              for(let i=0; i<positions.length; i+=3) {
                  positions[i] += (Math.sin(time + i) * 0.02 - 0.01) * dt * 60;
                  positions[i+1] += (Math.cos(time + i*2) * 0.02 - 0.005) * dt * 60; 
                  positions[i+2] += (Math.sin(time + i*3) * 0.02 - 0.01) * dt * 60;
-                 if(positions[i+1] > WALL_HEIGHT * 1.5) positions[i+1] = 0;
-                 if(positions[i+1] < 0) positions[i+1] = WALL_HEIGHT * 1.5;
+                 if(positions[i+1] > maxH) positions[i+1] = 0;
+                 if(positions[i+1] < 0) positions[i+1] = maxH;
              }
              particleGeo.attributes.position.needsUpdate = true;
         }
@@ -1441,27 +1516,20 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         // --- OBJETOS ---
         createCrate.geometry = null; 
 
-        function createCrate(x, z) {
+        function createCrate(x, z, floorIdx = 0) {
             if (!createCrate.geometry) {
                 createCrate.geometry = new THREE.BoxGeometry(1.3, 1.3, 1.3);
             }
-            // Geometría y Material
             const crate = new THREE.Mesh(createCrate.geometry, matWoodPanel);
-            
-            // Posición con pequeña variación
             const offX = (Math.random() - 0.5) * 0.5; 
             const offZ = (Math.random() - 0.5) * 0.5;
-            crate.position.set(x*WALL_SIZE + offX, 1.3/2, z*WALL_SIZE + offZ);
+            crate.position.set(x*WALL_SIZE + offX, (1.3/2) + floorIdx * FLOOR_HEIGHT, z*WALL_SIZE + offZ);
             crate.rotation.y = Math.random();
-            
             scene.add(crate);
             collidables.push(crate);
-            
-            // IMPORTANTE: NO marcamos mazeGrid[x][z] = 1
-            // Dejamos que el pathfinding pase por aquí. La evasión será física.
         }
 
-        function createTrash(x, z) {
+        function createTrash(x, z, floorIdx = 0) {
             const type = Math.floor(Math.random() * 4); 
             let mesh;
             const ox = (Math.random() - 0.5) * 2.5; 
@@ -1485,15 +1553,15 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.6, 5), new THREE.MeshStandardMaterial({color: 0x5c4033}));
                 mesh.rotation.x = Math.PI/2; mesh.rotation.z = Math.random()*3; mesh.position.y = 0.05;
             }
-            mesh.position.x = x*WALL_SIZE + ox; mesh.position.z = z*WALL_SIZE + oz; scene.add(mesh);
+            mesh.position.x = x*WALL_SIZE + ox; mesh.position.y += floorIdx * FLOOR_HEIGHT; mesh.position.z = z*WALL_SIZE + oz; scene.add(mesh);
         }
 
-        function createBattery(x, z) {
+        function createBattery(x, z, floorIdx = 0) {
             const grp = new THREE.Group();
             const mat = new THREE.MeshStandardMaterial({color: 0x00ff00, metalness: 0.8, roughness: 0.2});
             const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.4, 12), mat); cyl.position.y = 0.2;
             grp.add(cyl); grp.add(new THREE.PointLight(0x00ff00, 1, 3));
-            grp.position.set(x*WALL_SIZE, 0.5, z*WALL_SIZE); grp.userData = { type: 'battery' };
+            grp.position.set(x*WALL_SIZE, 0.5 + floorIdx * FLOOR_HEIGHT, z*WALL_SIZE); grp.userData = { type: 'battery' };
             scene.add(grp); objects.push(grp);
         }
 
@@ -1505,82 +1573,69 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             return 0xffffff;
         }
 
-        function createDoor(x, z, color, isExit) {
+        function createDoor(x, z, color, isExit, floorIdx = 0) {
             const grp = new THREE.Group();
             const horrorColor = getHorrorColor(color);
             
-            // Marco de madera (Caja sólida)
             const fr = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.3, 0.3), matWoodFrame); 
             fr.position.y = 1.15;
 
-            // Panel de la puerta
             const pn = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, 0.1), matWoodPanel); 
             pn.position.set(0, 1.15, -0.05);
             
-            // CAMBIO VISUAL: El Pomo ahora brilla con el color de la llave (Tu idea)
             const kb = new THREE.Mesh(
                 new THREE.SphereGeometry(0.1, 8, 8), 
                 new THREE.MeshStandardMaterial({
-                    color: horrorColor, // Color de la llave
+                    color: horrorColor,
                     roughness: 0.2, 
                     metalness: 0.8,
-                    emissive: horrorColor, // Brilla un poco en la oscuridad
+                    emissive: horrorColor,
                     emissiveIntensity: 0.2
                 })
             ); 
-            kb.position.set(0.4, 1.1, 0.15); // Z ajustado a 0.15 para sobresalir del marco
+            kb.position.set(0.4, 1.1, 0.15);
 
-            // --- LA "X" PINTADA ---
             const xGroup = new THREE.Group();
             const xMat = new THREE.MeshBasicMaterial({ color: horrorColor });
-            
             const bar1 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.15), xMat);
             bar1.rotation.z = Math.PI / 4;
             const bar2 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.15), xMat);
             bar2.rotation.z = -Math.PI / 4;
-            
             xGroup.add(bar1, bar2);
-            
-            // CORRECCIÓN DE BUG: Z movido de 0.06 a 0.16
-            // El marco tiene profundidad 0.3 (llega hasta 0.15), así que ponemos la X en 0.16 para que se vea.
             xGroup.position.set(0, 1.3, 0.16); 
-            // ----------------------
 
             grp.add(fr, pn, kb, xGroup);
             
-            // Luz tenue (Opcional, si quieres mantenerla)
             const light = new THREE.PointLight(horrorColor, 0.8, 3);
             light.position.set(0, 1.5, 0.5);
             grp.add(light);
             
-            // Rotación y Posición
+            const currentGrid = (numFloors > 1) ? mazeGrid[floorIdx] : mazeGrid;
             let rot = 0, offX=0, offZ=0;
-            if(mazeGrid[x][z] === 1) {
-                if(mazeGrid[x+1] && mazeGrid[x+1][z]===0) { rot = Math.PI/2; offX = WALL_SIZE/2 + 0.05; }
-                else if(mazeGrid[x-1] && mazeGrid[x-1][z]===0) { rot = -Math.PI/2; offX = -WALL_SIZE/2 - 0.05; }
-                else if(mazeGrid[x][z+1] && mazeGrid[x][z+1]===0) { rot = 0; offZ = WALL_SIZE/2 + 0.05; }
+            if(currentGrid[x] && currentGrid[x][z] === 1) {
+                if(currentGrid[x+1] && currentGrid[x+1][z]===0) { rot = Math.PI/2; offX = WALL_SIZE/2 + 0.05; }
+                else if(currentGrid[x-1] && currentGrid[x-1][z]===0) { rot = -Math.PI/2; offX = -WALL_SIZE/2 - 0.05; }
+                else if(currentGrid[x][z+1] && currentGrid[x][z+1]===0) { rot = 0; offZ = WALL_SIZE/2 + 0.05; }
                 else { rot = Math.PI; offZ = -WALL_SIZE/2 - 0.05; }
             }
-            grp.rotation.y = rot; grp.position.set(x*WALL_SIZE + offX, 0, z*WALL_SIZE + offZ);
+            grp.rotation.y = rot; 
+            grp.position.set(x*WALL_SIZE + offX, floorIdx * FLOOR_HEIGHT, z*WALL_SIZE + offZ);
             grp.userData = { type: 'door', color: color, isExit: isExit };
             scene.add(grp); objects.push(grp);
         }
 
-        function createKey(x, z, color) {
+        function createKey(x, z, color, floorIdx = 0) {
             const grp = new THREE.Group();
             const horrorColor = getHorrorColor(color);
             
             const mat = new THREE.MeshStandardMaterial({color: horrorColor, roughness: 0.4, metalness: 0.6});
             
-            // Forma de la llave
             const r = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 8, 16), mat); r.position.y = 0.5;
             const s = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), mat); s.rotation.x = Math.PI/2; s.position.set(0, 0.5, 0.4);
             const t = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.05), mat); t.position.set(0, 0.5, 0.55);
             
             grp.add(r, s, t); 
-            grp.position.set(x*WALL_SIZE, 1, z*WALL_SIZE); 
-            
-            // Luz muy tenue
+            grp.position.set(x*WALL_SIZE, 1 + floorIdx * FLOOR_HEIGHT, z*WALL_SIZE); 
             grp.add(new THREE.PointLight(horrorColor, 0.6, 3));
             
             grp.userData = { type: 'key', color: color };
@@ -1628,209 +1683,287 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         function spawnLevelContent() {
             let colors = ['red']; if(level >= 2) colors.push('blue'); if(level >= 4) colors.push('green');
             const exitColor = colors[Math.floor(Math.random()*colors.length)];
-            
-            let wC = []; // Candidatos de Pared
-            let fC = []; // Candidatos de Suelo
 
-            // 1. PRIMERO: Clasificar celdas (Llenar fC y wC)
-            for(let x=1; x<mazeSize-1; x++) { 
-                for(let z=1; z<mazeSize-1; z++) {
-                    if(mazeGrid[x][z] === 0) { 
-                        if(x > 3 || z > 3) fC.push({x,z}); 
-                    }
-                    else if(mazeGrid[x][z] === 1) { 
-                        let n = 0; 
-                        if(mazeGrid[x+1][z]===0) n++; 
-                        if(mazeGrid[x-1][z]===0) n++; 
-                        if(mazeGrid[x][z+1]===0) n++; 
-                        if(mazeGrid[x][z-1]===0) n++; 
-                        if(n === 1 && (x>2 || z>2)) wC.push({x,z}); 
-                    }
-                }
-            }
-
-            // --- NUEVA LÓGICA DE LINTERNA MEJORADA ---
-            if (level === 1) {
-                // Desordenamos los candidatos de suelo para que no elija siempre el primero que encuentra
-                fC.sort(() => Math.random() - 0.5);
-
-                // Ahora buscamos la posición en el rango ampliado
-                let flashSpawn = fC.find(p => (p.x + p.z > 3) && (p.x + p.z < 12));
-                
-                if (!flashSpawn && fC.length > 0) flashSpawn = fC[0];
-
-                if (flashSpawn) {
-                    // Usamos la función de modelo real que creamos arriba
-                    const itemFlash = crearModeloLinternaSuelo();
-                    
-                    // La elevamos un poquito del suelo para que no se "entierre"
-                    itemFlash.position.set(flashSpawn.x * WALL_SIZE, 0.2, flashSpawn.z * WALL_SIZE);
-                    
-                    // Agregamos una animación simple de giro para que sea más llamativa
-                    itemFlash.onBeforeRender = function() {
-                        this.rotation.y += 0.02;
-                    };
-
-                    itemFlash.userData = { type: 'item_flashlight' };
-                    scene.add(itemFlash);
-                    objects.push(itemFlash);
-                    showMessage("BUSCA UNA FUENTE DE LUZ");
-                }
-            }
-
-            // 2. CORRECCIÓN DEL BUG: Fallback inteligente
-            // Si la regla estricta no encontró paredes, buscamos CUALQUIER pared con salida
-            if (wC.length === 0) {
-                 for(let x=1; x<mazeSize-1; x++) { 
+            function getCandidates(grid) {
+                let w = [], f = [];
+                for(let x=1; x<mazeSize-1; x++) { 
                     for(let z=1; z<mazeSize-1; z++) {
-                        if(mazeGrid[x][z] === 1 && (x>2 || z>2)) {
-                            // Si tiene al menos un vecino suelo, nos sirve
-                            if (mazeGrid[x+1][z]===0 || mazeGrid[x-1][z]===0 || 
-                                mazeGrid[x][z+1]===0 || mazeGrid[x][z-1]===0) {
-                                wC.push({x,z});
+                        if (staircaseData && x === staircaseData.x && (z === staircaseData.zStart || z === staircaseData.zEnd)) continue;
+                        if(grid[x][z] === 0) { 
+                            if(x > 3 || z > 3) f.push({x,z}); 
+                        } else if(grid[x][z] === 1) { 
+                            let n = 0; 
+                            if(grid[x+1] && grid[x+1][z]===0) n++; 
+                            if(grid[x-1] && grid[x-1][z]===0) n++; 
+                            if(grid[x][z+1]===0) n++; 
+                            if(grid[x][z-1]===0) n++; 
+                            if(n === 1 && (x>2 || z>2)) w.push({x,z}); 
+                        }
+                    }
+                }
+                if (w.length === 0) {
+                    for(let x=1; x<mazeSize-1; x++) { 
+                        for(let z=1; z<mazeSize-1; z++) {
+                            if(grid[x][z] === 1 && (x>2 || z>2)) {
+                                if ((grid[x+1] && grid[x+1][z]===0) || (grid[x-1] && grid[x-1][z]===0) || 
+                                    grid[x][z+1]===0 || grid[x][z-1]===0) {
+                                    w.push({x,z});
+                                }
                             }
                         }
                     }
-                 }
-            }
-
-            // 3. Generar Objetos (Cajas)
-            const numCrates = 3 + level;
-            for(let i=0; i<numCrates; i++) {
-                if(fC.length > 0) {
-                    const idx = Math.floor(Math.random()*fC.length);
-                    const p = fC[idx];
-                    if(p.x > 4 || p.z > 4) { createCrate(p.x, p.z); fC.splice(idx, 1); }
                 }
+                return { w, f };
             }
 
-            // 4. Generar Basura
-            const numTrash = 12 + level*3;
-            for(let i=0; i<numTrash; i++) {
-                if(fC.length > 0) { const p = fC[Math.floor(Math.random()*fC.length)]; createTrash(p.x, p.z); }
+            if (numFloors === 1) {
+                const { w: wC, f: fC } = getCandidates(mazeGrid);
+
+                if (level === 1) {
+                    fC.sort(() => Math.random() - 0.5);
+                    let flashSpawn = fC.find(p => (p.x + p.z > 3) && (p.x + p.z < 12));
+                    if (!flashSpawn && fC.length > 0) flashSpawn = fC[0];
+                    if (flashSpawn) {
+                        const itemFlash = crearModeloLinternaSuelo();
+                        itemFlash.position.set(flashSpawn.x * WALL_SIZE, 0.2, flashSpawn.z * WALL_SIZE);
+                        itemFlash.onBeforeRender = function() { this.rotation.y += 0.02; };
+                        itemFlash.userData = { type: 'item_flashlight' };
+                        scene.add(itemFlash); objects.push(itemFlash);
+                        showMessage("BUSCA UNA FUENTE DE LUZ");
+                    }
+                }
+
+                const numCrates = 3 + level;
+                for(let i=0; i<numCrates; i++) {
+                    if(fC.length > 0) {
+                        const idx = Math.floor(Math.random()*fC.length);
+                        const p = fC[idx];
+                        if(p.x > 4 || p.z > 4) { createCrate(p.x, p.z, 0); fC.splice(idx, 1); }
+                    }
+                }
+
+                const numTrash = 12 + level*3;
+                for(let i=0; i<numTrash; i++) {
+                    if(fC.length > 0) { const p = fC[Math.floor(Math.random()*fC.length)]; createTrash(p.x, p.z, 0); }
+                }
+
+                if(wC.length > 0) { 
+                    const p = wC[Math.floor(Math.random()*wC.length)]; 
+                    createDoor(p.x, p.z, exitColor, true, 0); 
+                } 
+
+                if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createKey(p.x, p.z, exitColor, 0); }
+                for(let i=0; i<3; i++) {
+                    if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createBattery(p.x, p.z, 0); }
+                }
+            } else {
+                // MULTIPISO (Nivel 3+)
+                const cand0 = getCandidates(mazeGrid[0]);
+                const cand1 = getCandidates(mazeGrid[1]);
+
+                // Piso 0: Cajas, basura y 2 baterías
+                for(let i=0; i<4; i++) {
+                    if(cand0.f.length > 0) {
+                        const idx = Math.floor(Math.random()*cand0.f.length);
+                        const p = cand0.f.splice(idx, 1)[0];
+                        createCrate(p.x, p.z, 0);
+                    }
+                }
+                for(let i=0; i<10; i++) {
+                    if(cand0.f.length > 0) { const p = cand0.f[Math.floor(Math.random()*cand0.f.length)]; createTrash(p.x, p.z, 0); }
+                }
+                for(let i=0; i<2; i++) {
+                    if(cand0.f.length > 0) { const p = cand0.f.splice(Math.floor(Math.random()*cand0.f.length), 1)[0]; createBattery(p.x, p.z, 0); }
+                }
+
+                // Piso 1: Puerta de Escape colocada en el piso superior
+                if(cand1.w.length > 0) {
+                    const p = cand1.w[Math.floor(Math.random()*cand1.w.length)];
+                    createDoor(p.x, p.z, exitColor, true, 1);
+                }
+
+                // Llave en el Piso 0 o Piso 1
+                if(cand0.f.length > 0) {
+                    const p = cand0.f.splice(Math.floor(Math.random()*cand0.f.length), 1)[0];
+                    createKey(p.x, p.z, exitColor, 0);
+                }
+
+                // Piso 1: Cajas, basura y baterías adicionales
+                for(let i=0; i<4; i++) {
+                    if(cand1.f.length > 0) {
+                        const idx = Math.floor(Math.random()*cand1.f.length);
+                        const p = cand1.f.splice(idx, 1)[0];
+                        createCrate(p.x, p.z, 1);
+                    }
+                }
+                for(let i=0; i<10; i++) {
+                    if(cand1.f.length > 0) { const p = cand1.f[Math.floor(Math.random()*cand1.f.length)]; createTrash(p.x, p.z, 1); }
+                }
+                for(let i=0; i<2; i++) {
+                    if(cand1.f.length > 0) { const p = cand1.f.splice(Math.floor(Math.random()*cand1.f.length), 1)[0]; createBattery(p.x, p.z, 1); }
+                }
+
+                showMessage("NIVEL 3: 2 PISOS - BUSCA LA ESCALERA CENTRAL");
             }
 
-            // 5. Generar PUERTA (Usando solo wC)
-            if(wC.length > 0) { 
-                const p = wC[Math.floor(Math.random()*wC.length)]; 
-                createDoor(p.x, p.z, exitColor, true); 
-            } 
-            // ELIMINADO EL "ELSE IF" QUE CAUSABA EL BUG
-
-            // 6. Generar Llave y Baterías
-            if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createKey(p.x, p.z, exitColor); }
-            for(let i=0; i<3; i++) {
-                if(fC.length > 0) { const p = fC.splice(Math.floor(Math.random()*fC.length), 1)[0]; createBattery(p.x, p.z); }
+            const hud = document.getElementById('hud-keys'); 
+            if(hud) {
+                hud.innerHTML = '';
+                colors.forEach(c => { 
+                    if(c === exitColor) { 
+                        const s = document.createElement('div'); 
+                        s.className = 'key-slot'; 
+                        s.id = 'slot-'+c; 
+                        s.innerText = "?"; 
+                        s.style.color = c; 
+                        hud.appendChild(s); 
+                    } 
+                });
             }
-
-            const hud = document.getElementById('hud-keys'); hud.innerHTML = '';
-            colors.forEach(c => { if(c === exitColor) { const s = document.createElement('div'); s.className = 'key-slot'; s.id = 'slot-'+c; s.innerText = "?"; s.style.color = c; hud.appendChild(s); } });
         }
 
-        function generateMaze() {
-            mazeGrid = [];
-            // 1. Inicializar y Generar Laberinto (Algoritmo DFS)
-            for(let x=0; x<mazeSize; x++) { mazeGrid[x] = []; for(let z=0; z<mazeSize; z++) mazeGrid[x][z] = 1; }
-            const stack = [{x: 1, z: 1}]; mazeGrid[1][1] = 0;
+        function generateSingleMaze(size) {
+            const grid = [];
+            for(let x=0; x<size; x++) { grid[x] = []; for(let z=0; z<size; z++) grid[x][z] = 1; }
+            const stack = [{x: 1, z: 1}]; grid[1][1] = 0;
             
             while(stack.length > 0) {
                 const cur = stack.pop(); const neighbors = [];
                 [[0,-2],[0,2],[-2,0],[2,0]].forEach(d => { 
                     const nx=cur.x+d[0], nz=cur.z+d[1]; 
-                    if(nx>0 && nx<mazeSize-1 && nz>0 && nz<mazeSize-1 && mazeGrid[nx][nz] === 1) 
+                    if(nx>0 && nx<size-1 && nz>0 && nz<size-1 && grid[nx][nz] === 1) 
                         neighbors.push({x:nx, z:nz, dx:d[0]/2, dz:d[1]/2}); 
                 });
                 if(neighbors.length > 0) { 
                     stack.push(cur); const c = neighbors[Math.floor(Math.random()*neighbors.length)]; 
-                    mazeGrid[cur.x+c.dx][cur.z+c.dz] = 0; mazeGrid[c.x][c.z] = 0; stack.push({x: c.x, z: c.z}); 
+                    grid[cur.x+c.dx][cur.z+c.dz] = 0; grid[c.x][c.z] = 0; stack.push({x: c.x, z: c.z}); 
                 }
             }
-            // Huecos extra
-            for(let x=1; x<mazeSize-1; x++) { for(let z=1; z<mazeSize; z++) { if(mazeGrid[x][z]===1 && Math.random()>0.8) { 
-                const v = (mazeGrid[x+1][z]===0 && mazeGrid[x-1][z]===0); const h = (mazeGrid[x][z+1]===0 && mazeGrid[x][z-1]===0);
-                if(v || h) mazeGrid[x][z] = 0; 
+            for(let x=1; x<size-1; x++) { for(let z=1; z<size; z++) { if(grid[x][z]===1 && Math.random()>0.8) { 
+                const v = (grid[x+1] && grid[x-1] && grid[x+1][z]===0 && grid[x-1][z]===0); 
+                const h = (grid[x][z+1]===0 && grid[x][z-1]===0);
+                if(v || h) grid[x][z] = 0; 
             }}}
+            return grid;
+        }
 
-            // --- NUEVO: PRE-CALCULAR COLORES DE PAREDES ---
-            // Creamos una matriz paralela para guardar qué color tiene cada pared
-            let wallColors = [];
+        function buildFloorMeshes(grid, floorIdx, hasStairs) {
+            const wallColors = [];
             for(let x=0; x<mazeSize; x++) {
                 wallColors[x] = [];
                 for(let z=0; z<mazeSize; z++) {
-                    // Generamos el color "Terror" para cada celda
-                    const baseDark = new THREE.Color(0x554433);
+                    const baseDark = new THREE.Color(floorIdx === 0 ? 0x554433 : 0x334455);
                     let variance = (Math.random() * 0.4) - 0.2;
                     if(Math.random() > 0.8) variance -= 0.3;
                     const isReddish = Math.random() > 0.9;
-                    
-                    const finalColor = new THREE.Color().setRGB(
-                        Math.max(0.1, baseDark.r + variance + (isReddish ? 0.3 : 0)), 
-                        Math.max(0.1, baseDark.g + variance - (isReddish ? 0.1 : 0)), 
-                        Math.max(0.1, baseDark.b + variance - (isReddish ? 0.1 : 0))
+                    wallColors[x][z] = new THREE.Color().setRGB(
+                        Math.max(0.08, baseDark.r + variance + (isReddish ? 0.25 : 0)), 
+                        Math.max(0.08, baseDark.g + variance - (isReddish ? 0.08 : 0)), 
+                        Math.max(0.08, baseDark.b + variance - (isReddish ? 0.08 : 0))
                     );
-                    wallColors[x][z] = finalColor;
                 }
             }
 
-            // --- CONSTRUCCIÓN DE OBJETOS ---
             const wallGeo = new THREE.BoxGeometry(WALL_SIZE, WALL_HEIGHT, WALL_SIZE);
             const ceilingTileGeo = new THREE.PlaneGeometry(WALL_SIZE, WALL_SIZE);
+            const floorTileGeo = new THREE.PlaneGeometry(WALL_SIZE, WALL_SIZE);
             const runeGeo = new THREE.PlaneGeometry(1.5, 1.5); 
+            const baseY = floorIdx * FLOOR_HEIGHT;
 
-            // Suelo Único
-            const floorGeo = new THREE.PlaneGeometry(mazeSize*WALL_SIZE, mazeSize*WALL_SIZE);
-            if(matFloor.map) matFloor.map.repeat.set(mazeSize/2, mazeSize/2);
-            const floor = new THREE.Mesh(floorGeo, matFloor);
-            floor.rotation.x = -Math.PI/2;
-            floor.position.set((mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2, 0, (mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2);
-            scene.add(floor);
+            // Suelo del piso
+            if (floorIdx === 0) {
+                const floorGeo = new THREE.PlaneGeometry(mazeSize*WALL_SIZE, mazeSize*WALL_SIZE);
+                if(matFloor.map) matFloor.map.repeat.set(mazeSize/2, mazeSize/2);
+                const floor = new THREE.Mesh(floorGeo, matFloor);
+                floor.rotation.x = -Math.PI/2;
+                floor.position.set((mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2, 0, (mazeSize-1)*WALL_SIZE/2 - WALL_SIZE/2);
+                scene.add(floor);
+            }
 
             for(let x=0; x<mazeSize; x++) { 
                 for(let z=0; z<mazeSize; z++) { 
-                    
-                    // A) ES PARED -> Usamos su color pre-generado
-                    if(mazeGrid[x][z] === 1) { 
+                    const isStairLowerHole = hasStairs && staircaseData && (x === staircaseData.x && (z === staircaseData.zStart || z === staircaseData.zEnd));
+                    const isStairUpperExit = hasStairs && staircaseData && (x === staircaseData.x && z === staircaseData.zEnd);
+
+                    if(grid[x][z] === 1) { 
+                        // Pared sólida
                         const w = new THREE.Mesh(wallGeo, matWall.clone());
                         w.material.color = wallColors[x][z]; 
-                        w.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE); 
+                        w.position.set(x*WALL_SIZE, baseY + WALL_HEIGHT/2, z*WALL_SIZE); 
                         scene.add(w); walls.push(w); 
 
-                        // Runas (sin cambios)
+                        // Runas de sangre
                         if(Math.random() > 0.96) { 
                             const randomBloodMat = bloodRuneMaterials[Math.floor(Math.random() * bloodRuneMaterials.length)];
                             const rune = new THREE.Mesh(runeGeo, randomBloodMat);
                             let placed = false;
-                            if(z>0 && mazeGrid[x][z-1]===0) { rune.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE-WALL_SIZE/2-0.05); placed=true; }
-                            else if (z<mazeSize-1 && mazeGrid[x][z+1]===0) { rune.position.set(x*WALL_SIZE, WALL_HEIGHT/2, z*WALL_SIZE+WALL_SIZE/2+0.05); rune.rotation.y=Math.PI; placed=true; }
-                            else if(x>0 && mazeGrid[x-1][z]===0) { rune.position.set(x*WALL_SIZE-WALL_SIZE/2-0.05, WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=-Math.PI/2; placed=true; }
-                            else if (x<mazeSize-1 && mazeGrid[x+1][z]===0) { rune.position.set(x*WALL_SIZE+WALL_SIZE/2+0.05, WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=Math.PI/2; placed=true; }
+                            if(z>0 && grid[x][z-1]===0) { rune.position.set(x*WALL_SIZE, baseY + WALL_HEIGHT/2, z*WALL_SIZE-WALL_SIZE/2-0.05); placed=true; }
+                            else if (z<mazeSize-1 && grid[x][z+1]===0) { rune.position.set(x*WALL_SIZE, baseY + WALL_HEIGHT/2, z*WALL_SIZE+WALL_SIZE/2+0.05); rune.rotation.y=Math.PI; placed=true; }
+                            else if(x>0 && grid[x-1][z]===0) { rune.position.set(x*WALL_SIZE-WALL_SIZE/2-0.05, baseY + WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=-Math.PI/2; placed=true; }
+                            else if (x<mazeSize-1 && grid[x+1][z]===0) { rune.position.set(x*WALL_SIZE+WALL_SIZE/2+0.05, baseY + WALL_HEIGHT/2, z*WALL_SIZE); rune.rotation.y=Math.PI/2; placed=true; }
                             if(placed) scene.add(rune);
                         }
                     } 
-                    // B) ES PASILLO (TECHO) -> Heredar color de vecino
                     else {
-                        const c = new THREE.Mesh(ceilingTileGeo, matWall.clone());
-                        
-                        // Lógica de "Robar Color": Buscar paredes vecinas
-                        let neighborsColors = [];
-                        if(x>0 && mazeGrid[x-1][z]===1) neighborsColors.push(wallColors[x-1][z]);
-                        if(x<mazeSize-1 && mazeGrid[x+1][z]===1) neighborsColors.push(wallColors[x+1][z]);
-                        if(z>0 && mazeGrid[x][z-1]===1) neighborsColors.push(wallColors[x][z-1]);
-                        if(z<mazeSize-1 && mazeGrid[x][z+1]===1) neighborsColors.push(wallColors[x][z+1]);
-
-                        if(neighborsColors.length > 0) {
-                            // Si tiene paredes al lado, toma el color de una de ellas
-                            c.material.color = neighborsColors[Math.floor(Math.random() * neighborsColors.length)];
-                        } else {
-                            // Si está en medio de una sala grande (sin paredes pegadas), usa su propio color random
-                            c.material.color = wallColors[x][z];
+                        // Pasillo: Suelo en el Piso 1
+                        if (floorIdx === 1 && !isStairUpperExit) {
+                            const fl = new THREE.Mesh(floorTileGeo, matFloor.clone());
+                            fl.position.set(x*WALL_SIZE, baseY, z*WALL_SIZE);
+                            fl.rotation.x = -Math.PI / 2;
+                            scene.add(fl);
                         }
-                        
-                        c.position.set(x*WALL_SIZE, WALL_HEIGHT, z*WALL_SIZE);
-                        c.rotation.x = Math.PI / 2;
-                        scene.add(c);
+
+                        // Techo (salvo en el hueco de la escalera del Piso 0)
+                        if (!(floorIdx === 0 && isStairLowerHole)) {
+                            const c = new THREE.Mesh(ceilingTileGeo, matWall.clone());
+                            let neighborsColors = [];
+                            if(x>0 && grid[x-1][z]===1) neighborsColors.push(wallColors[x-1][z]);
+                            if(x<mazeSize-1 && grid[x+1][z]===1) neighborsColors.push(wallColors[x+1][z]);
+                            if(z>0 && grid[x][z-1]===1) neighborsColors.push(wallColors[x][z-1]);
+                            if(z<mazeSize-1 && grid[x][z+1]===1) neighborsColors.push(wallColors[x][z+1]);
+
+                            if(neighborsColors.length > 0) {
+                                c.material.color = neighborsColors[Math.floor(Math.random() * neighborsColors.length)];
+                            } else {
+                                c.material.color = wallColors[x][z];
+                            }
+                            
+                            c.position.set(x*WALL_SIZE, baseY + WALL_HEIGHT, z*WALL_SIZE);
+                            c.rotation.x = Math.PI / 2;
+                            scene.add(c);
+                        }
                     }
                 }
+            }
+        }
+
+        function generateMaze() {
+            numFloors = (level >= 3) ? 2 : 1;
+            staircaseData = null;
+
+            if (numFloors === 1) {
+                mazeGrid = generateSingleMaze(mazeSize);
+                buildFloorMeshes(mazeGrid, 0, false);
+            } else {
+                const grid0 = generateSingleMaze(mazeSize);
+                const grid1 = generateSingleMaze(mazeSize);
+
+                const cx = (Math.floor(mazeSize / 2) | 1);
+                const cz = (Math.floor(mazeSize / 2) | 1);
+                
+                grid0[cx][cz] = 0; grid0[cx][cz + 1] = 0;
+                grid1[cx][cz] = 0; grid1[cx][cz + 1] = 0;
+                
+                if (grid0[cx - 1]) grid0[cx - 1][cz] = 0;
+                if (grid1[cx + 1]) grid1[cx + 1][cz + 1] = 0;
+
+                staircaseData = { x: cx, zStart: cz, zEnd: cz + 1, yStart: 0, yEnd: FLOOR_HEIGHT };
+                mazeGrid = [grid0, grid1];
+
+                buildFloorMeshes(grid0, 0, true);
+                buildFloorMeshes(grid1, 1, true);
+
+                createIndustrialStairs(cx, cz, cz + 1, 0, FLOOR_HEIGHT);
             }
         }
 
@@ -1881,56 +2014,248 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             } catch(e) { logError("Level Error: " + e.message); }
         }
 
-        // 1. Función constructora: Crea la apariencia del monstruo (basada en tu código original)
+                // --- MODELADO DE ESCALERA INDUSTRIAL METÁLICA ---
+        function createIndustrialStairs(x, zStart, zEnd, yStart, yEnd) {
+            const stairsGrp = new THREE.Group();
+            const matSteel = new THREE.MeshStandardMaterial({ color: 0x22252a, metalness: 0.85, roughness: 0.3 });
+            const matGrip = new THREE.MeshStandardMaterial({ color: 0x15171a, metalness: 0.9, roughness: 0.2 });
+            const matHazard = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+
+            const minZ = Math.min(zStart, zEnd) * WALL_SIZE;
+            const maxZ = Math.max(zStart, zEnd) * WALL_SIZE;
+            const lengthZ = (maxZ - minZ) + WALL_SIZE;
+            const heightY = (yEnd - yStart);
+            const posX = x * WALL_SIZE;
+            const posZ = (minZ + maxZ) / 2;
+
+            // 1. Zancas laterales de acero (vigas maestras inclinadas)
+            const stringerLen = Math.sqrt(lengthZ * lengthZ + heightY * heightY);
+            const angle = Math.atan2(heightY, lengthZ);
+
+            for (let side of [-1, 1]) {
+                const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, stringerLen), matSteel);
+                stringer.position.set(posX + side * 1.1, yStart + heightY / 2, posZ);
+                stringer.rotation.x = (zStart < zEnd ? -1 : 1) * angle;
+                stairsGrp.add(stringer);
+
+                // Barandillas de seguridad
+                const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, stringerLen), matHazard);
+                rail.position.set(posX + side * 1.1, yStart + heightY / 2 + 1.1, posZ);
+                rail.rotation.x = (zStart < zEnd ? -1 : 1) * angle;
+                stairsGrp.add(rail);
+
+                // Postes verticales de barandilla
+                for (let p = 0; p <= 4; p++) {
+                    const postT = p / 4;
+                    const postY = yStart + postT * heightY + 0.55;
+                    const pz = (zStart < zEnd) ? (minZ - WALL_SIZE/2 + postT * lengthZ) : (maxZ + WALL_SIZE/2 - postT * lengthZ);
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1), matSteel);
+                    post.position.set(posX + side * 1.1, postY, pz);
+                    stairsGrp.add(post);
+                }
+            }
+
+            // 2. Peldaños de rejilla industrial
+            const numSteps = 16;
+            for (let s = 0; s < numSteps; s++) {
+                const t = s / (numSteps - 1);
+                const stepY = yStart + t * heightY + 0.1;
+                const stepZ = (zStart < zEnd) ? (minZ - WALL_SIZE/2 + 0.5 + t * (lengthZ - 1.0)) : (maxZ + WALL_SIZE/2 - 0.5 - t * (lengthZ - 1.0));
+                
+                const step = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.45), matGrip);
+                step.position.set(posX, stepY, stepZ);
+                stairsGrp.add(step);
+
+                // Señal de advertencia en el primer peldaño
+                if (s === 0) {
+                    const warn = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.01, 0.1), matHazard);
+                    warn.position.set(posX, stepY + 0.045, stepZ);
+                    stairsGrp.add(warn);
+                }
+            }
+
+            // Luz tenue de emergencia en la escalera para guiar al jugador en la oscuridad
+            const stairLight = new THREE.PointLight(0xffaa00, 0.8, 8);
+            stairLight.position.set(posX, yStart + heightY / 2 + 1.5, posZ);
+            stairsGrp.add(stairLight);
+
+            scene.add(stairsGrp);
+            return stairsGrp;
+        }
+
+        // --- REDISEÑO DEL MONSTRUO: THE HOLLOW STALKER ---
         function createMonsterMesh() {
             const grp = new THREE.Group();
 
-            // Cuerpo (Icosahedro negro)
-            grp.add(new THREE.Mesh(
-                new THREE.IcosahedronGeometry(0.5),
-                new THREE.MeshBasicMaterial({color: 0x000000})
-            ));
+            const matDarkSkin = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.9, metalness: 0.3 });
+            const matBone = new THREE.MeshStandardMaterial({ color: 0x221c16, roughness: 0.7 });
+            const matEyes = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const matHeart = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
 
-            // Pinchos (Conos rojos)
-            for(let j = 0; j < 8; j++){
-                const s = new THREE.Mesh(
-                    new THREE.ConeGeometry(0.05, 1.5, 4),
-                    new THREE.MeshBasicMaterial({color: 0x550000})
-                );
-                s.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
-                grp.add(s);
+            // 1. Pelvis / Base del torso
+            const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.3), matDarkSkin);
+            pelvis.position.y = 0.95;
+            grp.add(pelvis);
+
+            // 2. Torso esquelético
+            const torso = new THREE.Group();
+            torso.position.set(0, 1.05, 0);
+
+            // Caja torácica alargada y demacrada
+            const ribcage = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.35), matDarkSkin);
+            ribcage.position.set(0, 0.35, 0.05);
+            torso.add(ribcage);
+
+            // Columna vertebral y vértebras salientes
+            for (let i = 0; i < 5; i++) {
+                const vert = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.16), matBone);
+                vert.position.set(0, 0.12 + i * 0.13, -0.2);
+                torso.add(vert);
             }
 
-            // Luz roja
-            grp.add(new THREE.PointLight(0xff0000, 1.5, 6));
+            // Costillas arqueadas
+            for (let i = 0; i < 4; i++) {
+                const rL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 5), matBone);
+                rL.rotation.z = Math.PI / 3;
+                rL.position.set(-0.24, 0.2 + i * 0.12, 0.06);
+                const rR = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 5), matBone);
+                rR.rotation.z = -Math.PI / 3;
+                rR.position.set(0.24, 0.2 + i * 0.12, 0.06);
+                torso.add(rL, rR);
+            }
 
-            // Propiedades adicionales para el "Sistema Inteligente"
-            grp.userData = { type: 'monster', id: Math.random() }; // Útil para colisiones o IA futura
+            // Corazón palpitante dentro de la cavidad torácica
+            const heart = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), matHeart);
+            heart.position.set(0, 0.35, 0.08);
+            torso.add(heart);
+
+            // Cuello estirado
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 0.35, 6), matDarkSkin);
+            neck.position.set(0, 0.8, 0.1);
+            neck.rotation.x = Math.PI / 7;
+            torso.add(neck);
+
+            // 3. Cabeza y Cráneo siniestro
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 1.0, 0.2);
+
+            const skull = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.4, 0.38), matDarkSkin);
+            headGroup.add(skull);
+
+            // Mandíbula desencajada hacia abajo
+            const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.14, 0.32), matBone);
+            jaw.position.set(0, -0.22, 0.1);
+            jaw.rotation.x = 0.3;
+            headGroup.add(jaw);
+
+            // Ojos rojos brillantes
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), matEyes);
+            eyeL.position.set(-0.09, 0.04, 0.2);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), matEyes);
+            eyeR.position.set(0.09, 0.04, 0.2);
+            headGroup.add(eyeL, eyeR);
+            torso.add(headGroup);
+
+            // 4. Brazos Desproporcionados con Garras (Cuelgan casi hasta el suelo)
+            const armL = new THREE.Group();
+            armL.position.set(-0.32, 0.65, 0);
+            const upArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.6, 6), matDarkSkin);
+            upArmL.position.y = -0.3;
+            const loArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.7, 6), matDarkSkin);
+            loArmL.position.set(0, -0.85, 0.08);
+            loArmL.rotation.x = 0.2;
+            armL.add(upArmL, loArmL);
+
+            // Garras
+            for (let c = -1; c <= 1; c++) {
+                const claw = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.2, 4), matBone);
+                claw.position.set(c * 0.04, -1.25, 0.16);
+                claw.rotation.x = Math.PI * 0.9;
+                armL.add(claw);
+            }
+            torso.add(armL);
+
+            const armR = new THREE.Group();
+            armR.position.set(0.32, 0.65, 0);
+            const upArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.6, 6), matDarkSkin);
+            upArmR.position.y = -0.3;
+            const loArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.7, 6), matDarkSkin);
+            loArmR.position.set(0, -0.85, 0.08);
+            loArmR.rotation.x = 0.2;
+            armR.add(upArmR, loArmR);
+
+            for (let c = -1; c <= 1; c++) {
+                const claw = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.2, 4), matBone);
+                claw.position.set(c * 0.04, -1.25, 0.16);
+                claw.rotation.x = Math.PI * 0.9;
+                armR.add(claw);
+            }
+            torso.add(armR);
+
+            grp.add(torso);
+
+            // 5. Piernas Digitígradas / Zancudas
+            const legL = new THREE.Group();
+            legL.position.set(-0.18, 0.95, 0);
+            const thighL = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.05, 0.55, 6), matDarkSkin);
+            thighL.position.set(0, -0.25, 0.06);
+            thighL.rotation.x = 0.25;
+            const calfL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 0.6, 6), matDarkSkin);
+            calfL.position.set(0, -0.68, -0.04);
+            calfL.rotation.x = -0.25;
+            const footL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.28), matBone);
+            footL.position.set(0, -0.95, 0.06);
+            legL.add(thighL, calfL, footL);
+            grp.add(legL);
+
+            const legR = new THREE.Group();
+            legR.position.set(0.18, 0.95, 0);
+            const thighR = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.05, 0.55, 6), matDarkSkin);
+            thighR.position.set(0, -0.25, 0.06);
+            thighR.rotation.x = 0.25;
+            const calfR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 0.6, 6), matDarkSkin);
+            calfR.position.set(0, -0.68, -0.04);
+            calfR.rotation.x = -0.25;
+            const footR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.28), matBone);
+            footR.position.set(0, -0.95, 0.06);
+            legR.add(thighR, calfR, footR);
+            grp.add(legR);
+
+            // Luz roja espectral que proyecta silueta en el suelo
+            const monsterLight = new THREE.PointLight(0xff0000, 1.3, 6);
+            monsterLight.position.set(0, 1.4, 0.3);
+            grp.add(monsterLight);
+
+            grp.userData = { 
+                type: 'monster', 
+                id: Math.random(),
+                limbs: { torso, headGroup, jaw, armL, armR, legL, legR, heart, eyeL, eyeR },
+                light: monsterLight
+            };
 
             return grp;
         }
 
-        // 2. Función de Lógica: Decide cuántos y dónde (Sistema de Niveles)
         function spawnMonsters() {
-            // Cálculo de dificultad basado en tu fórmula original
             const count = Math.min(6, 1 + Math.floor(level / 1.5));
 
             for(let i = 0; i < count; i++) {
-                // AQUÍ es donde antes fallaba: ahora llamamos a la función que definimos arriba
                 const monster = createMonsterMesh();
+                const floorIdx = (numFloors > 1) ? (i % 2) : 0;
+                const grid = (numFloors > 1) ? mazeGrid[floorIdx] : mazeGrid;
 
-                // Lógica de posicionamiento en el laberinto
                 let mx, mz;
+                let attempts = 0;
                 do {
                     mx = Math.floor(Math.random() * mazeSize);
                     mz = Math.floor(Math.random() * mazeSize);
-                // Evita muros (0) y evita aparecer muy cerca del inicio (mx < 5)
-                } while(mazeGrid[mx][mz] !== 0 || mx < 5);
+                    attempts++;
+                } while((!grid[mx] || grid[mx][mz] !== 0 || (floorIdx === 0 && (mx < 5 && mz < 5))) && attempts < 200);
 
-                // Asignar posición real en el mundo 3D
-                monster.position.set(mx * WALL_SIZE, 1.5, mz * WALL_SIZE);
+                const baseY = 1.5 + floorIdx * FLOOR_HEIGHT;
+                monster.position.set(mx * WALL_SIZE, baseY, mz * WALL_SIZE);
+                monster.userData.floor = floorIdx;
 
-                // Guardar en array y añadir a escena
                 monsters.push(monster);
                 scene.add(monster);
             }
@@ -1989,9 +2314,17 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         function updateKeyHUD() { document.getElementById('hud-keys').innerHTML = ''; }
 
         function checkWallCollision(pos) {
-            const x = Math.round(pos.x / WALL_SIZE); const z = Math.round(pos.z / WALL_SIZE);
+            const f = (pos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
+            const x = Math.round(pos.x / WALL_SIZE);
+            const z = Math.round(pos.z / WALL_SIZE);
             if(x < 0 || x >= mazeSize || z < 0 || z >= mazeSize) return true;
-            return (mazeGrid[x][z] === 1);
+
+            if (staircaseData && x === staircaseData.x && (z === staircaseData.zStart || z === staircaseData.zEnd)) {
+                return false;
+            }
+
+            const grid = (numFloors > 1) ? mazeGrid[f] : mazeGrid;
+            return (grid && grid[x] && grid[x][z] === 1);
         }
 
         // --- NEW: ADVANCED COLLISION LOGIC ---
@@ -2492,6 +2825,26 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 stamBar.style.boxShadow = 'inset 0 0 10px rgba(0, 255, 255, 0.5)';
             }
 
+            // --- FÍSICA VERTICAL Y ESCALERA INDUSTRIAL ---
+            if (numFloors > 1 && staircaseData) {
+                const sPosX = staircaseData.x * WALL_SIZE;
+                const minZ = Math.min(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE - (WALL_SIZE * 0.45);
+                const maxZ = Math.max(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE + (WALL_SIZE * 0.45);
+                const inStairX = Math.abs(player.position.x - sPosX) < (WALL_SIZE * 0.45);
+                const inStairZ = (player.position.z >= minZ && player.position.z <= maxZ);
+
+                if (inStairX && inStairZ) {
+                    const prog = (player.position.z - minZ) / (maxZ - minZ);
+                    const targetY = THREE.MathUtils.clamp(prog * FLOOR_HEIGHT, 0, FLOOR_HEIGHT);
+                    player.position.y += (targetY - player.position.y) * 0.25;
+                } else {
+                    const targetFloorY = (player.position.y > (FLOOR_HEIGHT * 0.5)) ? FLOOR_HEIGHT : 0.0;
+                    player.position.y += (targetFloorY - player.position.y) * 0.2;
+                }
+            } else {
+                player.position.y += (0.0 - player.position.y) * 0.2;
+            }
+
             const dir = new THREE.Vector3();
             if(keys.w) dir.z = -1; if(keys.s) dir.z = 1; if(keys.a) dir.x = -1; if(keys.d) dir.x = 1;
             const now = Date.now();
@@ -2554,26 +2907,32 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 const distToPlayer = player.position.distanceTo(m.position);
                 if(distToPlayer < closest) closest = distToPlayer;
 
-                // A. Animación orgánica
-                const bobOffset = Math.sin(timeSec * 2 + index) * 0.15; 
-                const swayAmount = Math.sin(timeSec * 3 + index) * 0.1; 
-                const scalePulse = 1.0 + Math.sin(timeSec * 3.5 + index) * 0.05;
-                m.scale.set(scalePulse, scalePulse, scalePulse);
+                // A. Animación espeluznante de The Hollow Stalker
+                const bobOffset = Math.sin(timeSec * 3 + index) * 0.12; 
+                const swayAmount = Math.sin(timeSec * 2.5 + index) * 0.08; 
 
-                m.children.forEach((child, childIdx) => {
-                    if(child.geometry && child.geometry.type === 'ConeGeometry') {
-                        child.rotation.x += 0.015 * (childIdx % 2 === 0 ? 1 : -1);
-                        child.rotation.z += 0.01;
-                    }
-                });
+                if (m.userData.limbs) {
+                    const L = m.userData.limbs;
+                    const walkCycle = Math.sin(timeSec * 4 + index);
+                    L.armL.rotation.x = walkCycle * 0.45 + 0.1;
+                    L.armR.rotation.x = -walkCycle * 0.45 + 0.1;
+                    L.legL.rotation.x = -walkCycle * 0.35;
+                    L.legR.rotation.x = walkCycle * 0.35;
+                    L.headGroup.rotation.y = Math.sin(timeSec * 2 + index) * 0.2;
+                    L.headGroup.rotation.z = Math.sin(timeSec * 6 + index) * 0.08;
+                    L.jaw.rotation.x = 0.25 + Math.sin(timeSec * 5 + index) * 0.1;
+                    if (L.heart) L.heart.scale.setScalar(1.0 + Math.sin(timeSec * 8) * 0.2);
+                }
 
                 // B. Gestión de aturdimiento
                 if (m.userData.stunnedUntil && nowTime < m.userData.stunnedUntil) {
-                    m.position.y = 1.5 + (Math.random()-0.5)*0.2; 
-                    if (m.children[0] && m.children[0].material) m.children[0].material.color.setHex(0xffffff);
+                    m.position.y += (Math.random()-0.5)*0.15; 
+                    if (m.userData.limbs) {
+                        m.userData.limbs.headGroup.rotation.x = (Math.random()-0.5)*0.6;
+                        m.userData.limbs.armL.rotation.z = -0.6 + (Math.random()-0.5)*0.4;
+                        m.userData.limbs.armR.rotation.z = 0.6 + (Math.random()-0.5)*0.4;
+                    }
                     return; 
-                } else {
-                    if (m.children[0] && m.children[0].material) m.children[0].material.color.setHex(0x000000);
                 }
 
                 // C. Lógica de navegación
@@ -2588,11 +2947,12 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                     if (m.userData.path && m.userData.path.length > 0) {
                         const targetNode = m.userData.path[0];
-                        targetWorldPos = new THREE.Vector3(targetNode.x * WALL_SIZE, 1.5, targetNode.z * WALL_SIZE);
+                        const nodeY = 1.5 + (targetNode.f || 0) * FLOOR_HEIGHT;
+                        targetWorldPos = new THREE.Vector3(targetNode.x * WALL_SIZE, nodeY, targetNode.z * WALL_SIZE);
 
-                        const distToNode = new THREE.Vector2(m.position.x, m.position.z)
-                                           .distanceTo(new THREE.Vector2(targetWorldPos.x, targetWorldPos.z));
-                        if (distToNode < 0.8) { 
+                        const distToNode = new THREE.Vector3(m.position.x, m.position.y, m.position.z)
+                                           .distanceTo(targetWorldPos);
+                        if (distToNode < 1.2) { 
                             m.userData.path.shift();
                         }
                     }
