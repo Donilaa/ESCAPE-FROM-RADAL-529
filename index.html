@@ -2322,10 +2322,10 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         function createMonsterMesh() {
             const grp = new THREE.Group();
 
-            const matDarkSkin = new THREE.MeshStandardMaterial({ color: 0x4e545c, roughness: 0.85, metalness: 0.15 });
-            const matBone = new THREE.MeshStandardMaterial({ color: 0x948b7c, roughness: 0.6 });
+            const matDarkSkin = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.9, metalness: 0.3 });
+            const matBone = new THREE.MeshStandardMaterial({ color: 0x221c16, roughness: 0.7 });
             const matEyes = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const matHeart = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+            const matHeart = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
 
             // 1. Pelvis / Base del torso
             const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.3), matDarkSkin);
@@ -2457,7 +2457,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             grp.add(legR);
 
             // Luz roja espectral que proyecta silueta en el suelo
-            const monsterLight = new THREE.PointLight(0xff1800, 1.8, 7.5);
+            const monsterLight = new THREE.PointLight(0xff0000, 1.4, 6.0);
             monsterLight.position.set(0, 1.4, 0.3);
             grp.add(monsterLight);
 
@@ -3003,7 +3003,11 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                 // --- REVISAR SI EL MONSTRUO ESTÁ ATURDIDO ---
                 if (m.userData.stunnedUntil && performance.now() < m.userData.stunnedUntil) {
-                    m.rotation.z = (Math.random() - 0.5) * 0.5;
+                    if (m.userData.limbs && m.userData.limbs.torso) {
+                        m.userData.limbs.torso.rotation.z = (Math.random() - 0.5) * 0.3;
+                    }
+                    m.rotation.x = 0;
+                    m.rotation.z = 0;
                     return;
                 }
                 // ---------------------------------------------
@@ -3251,7 +3255,11 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 // Pies firmemente sobre el suelo con sutil paso biomecánico
                 const footStepBob = Math.abs(Math.sin(timeSec * 4 + index)) * 0.06;
                 m.position.y = groundY + footStepBob; 
-                m.rotation.z = swayAmount; 
+                m.rotation.x = 0;
+                m.rotation.z = 0;
+                if (m.userData.limbs && m.userData.limbs.torso) {
+                    m.userData.limbs.torso.rotation.z = swayAmount;
+                }
 
                 // C. Lógica de navegación
                 if (distToPlayer < 25) { 
@@ -3314,12 +3322,14 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     if (finalMoveDir.lengthSq() > 0.001) {
                         finalMoveDir.normalize();
 
-                        // Aplicar rotación
-                        const dummy = new THREE.Object3D();
-                        dummy.position.copy(m.position);
-                        dummy.lookAt(m.position.x + finalMoveDir.x, m.position.y, m.position.z + finalMoveDir.z);
-                        m.quaternion.slerp(dummy.quaternion, 0.08); 
+                        // Rotación segura EXCLUSIVAMENTE sobre el eje Y (yaw).
+                        // x y z se mantienen estrictamente forzados a 0 para impedir rotaciones invertidas o que el monstruo caiga bajo el suelo.
+                        const targetAngleY = Math.atan2(finalMoveDir.x, finalMoveDir.z);
+                        const diffAngle = Math.atan2(Math.sin(targetAngleY - m.rotation.y), Math.cos(targetAngleY - m.rotation.y));
+                        m.rotation.y += diffAngle * 0.12;
                     }
+                    m.rotation.x = 0;
+                    m.rotation.z = 0;
 
                     if (distToPlayer > 1.2 && finalMoveDir.lengthSq() > 0.001) {
                         const moveDist = 3.5 * dt;
