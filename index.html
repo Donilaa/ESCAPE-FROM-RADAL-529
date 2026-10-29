@@ -583,7 +583,8 @@
         const FLOOR_HEIGHT = 5;
         let numFloors = 1;
         let staircaseData = null;
-        let ceilingBulbs = [];
+        let wallLights = [];
+        let ceilingBulbs = wallLights;
         let isGameActive = false;
         let isPaused = false;
         let keysHeld = { red: false, blue: false, green: false };
@@ -1748,14 +1749,8 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     if(fC.length > 0) { const p = fC[Math.floor(Math.random()*fC.length)]; createTrash(p.x, p.z, 0); }
                 }
 
-                // Generar circuito de ampolletas en pasillos (Piso 0)
-                for(let x=1; x<mazeSize-1; x+=2) {
-                    for(let z=1; z<mazeSize-1; z+=2) {
-                        if(mazeGrid[x][z] === 0) {
-                            createCeilingBulb(x, z, 0);
-                        }
-                    }
-                }
+                // Generar tendido de cables y lámparas de pared por todo el mapa
+                buildCorridorCablesAndLamps(mazeGrid, 0);
 
                 if(wC.length > 0) { 
                     const p = wC[Math.floor(Math.random()*wC.length)]; 
@@ -1810,17 +1805,9 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     if(cand1.f.length > 0) { const p = cand1.f[Math.floor(Math.random()*cand1.f.length)]; createTrash(p.x, p.z, 1); }
                 }
 
-                // Circuito de ampolletas en ambos pisos
-                for(let x=1; x<mazeSize-1; x+=2) {
-                    for(let z=1; z<mazeSize-1; z+=2) {
-                        if(mazeGrid[0][x][z] === 0 && !(staircaseData && x===staircaseData.x && (z===staircaseData.zStart||z===staircaseData.zEnd))) {
-                            createCeilingBulb(x, z, 0);
-                        }
-                        if(mazeGrid[1][x][z] === 0 && !(staircaseData && x===staircaseData.x && z===staircaseData.zEnd)) {
-                            createCeilingBulb(x, z, 1);
-                        }
-                    }
-                }
+                // Tendido de cables y lámparas de pared en ambos pisos
+                buildCorridorCablesAndLamps(mazeGrid[0], 0);
+                buildCorridorCablesAndLamps(mazeGrid[1], 1);
                 for(let i=0; i<2; i++) {
                     if(cand1.f.length > 0) { const p = cand1.f.splice(Math.floor(Math.random()*cand1.f.length), 1)[0]; createBattery(p.x, p.z, 1); }
                 }
@@ -2007,7 +1994,8 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 // --------------------------------
 
                 monsters = []; objects = []; collidables = []; walls = [];
-                ceilingBulbs = [];
+                wallLights = [];
+                ceilingBulbs = wallLights;
                 keysHeld = { red: false, blue: false, green: false }; 
                 document.getElementById('battery-count').innerText = `[${batteryCount}]`; 
                 isFirstPerson = false;
@@ -2037,130 +2025,228 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             } catch(e) { logError("Level Error: " + e.message); }
         }
 
-                        // --- CIRCUITO DE AMPOLLETAS / LUCES DE TECHO ---
-        function createCeilingBulb(x, z, floorIdx) {
+                        // --- TENDIDO INDUSTRIAL DE CABLES Y LÁMPARAS DE PARED ---
+        function createWallLamp(cellX, cellZ, dir, floorIdx) {
             const grp = new THREE.Group();
-            const ceilingY = (floorIdx + 1) * FLOOR_HEIGHT;
-            const posX = x * WALL_SIZE;
-            const posZ = z * WALL_SIZE;
+            const baseY = floorIdx * FLOOR_HEIGHT;
+            const cableY = baseY + 3.4;
 
-            // 65% de las ampolletas están rotas/quemadas
-            const isBroken = Math.random() < 0.65;
+            // 60% de las ampolletas están rotas/quemadas, 40% funcionan
+            const isBroken = Math.random() < 0.60;
 
-            // Cable que desciende del techo
-            const cord = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.015, 0.015, 1.2, 5),
-                new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
-            );
-            cord.position.set(0, ceilingY - 0.6, 0);
-            grp.add(cord);
+            let wallX = cellX * WALL_SIZE;
+            let wallZ = cellZ * WALL_SIZE;
+            let rotY = 0;
 
-            // Casquillo de latón oxidado
-            const socket = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.06, 0.05, 0.14, 8),
-                new THREE.MeshStandardMaterial({ color: 0x3a3020, metalness: 0.7, roughness: 0.5 })
-            );
-            socket.position.set(0, ceilingY - 1.2, 0);
+            if (dir === 'N') {
+                wallZ = cellZ * WALL_SIZE - WALL_SIZE / 2;
+                rotY = 0;
+            } else if (dir === 'S') {
+                wallZ = cellZ * WALL_SIZE + WALL_SIZE / 2;
+                rotY = Math.PI;
+            } else if (dir === 'W') {
+                wallX = cellX * WALL_SIZE - WALL_SIZE / 2;
+                rotY = Math.PI / 2;
+            } else if (dir === 'E') {
+                wallX = cellX * WALL_SIZE + WALL_SIZE / 2;
+                rotY = -Math.PI / 2;
+            }
+
+            grp.position.set(wallX, cableY, wallZ);
+            grp.rotation.y = rotY;
+
+            const matMetalDark = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7, metalness: 0.8 });
+            const matBrass = new THREE.MeshStandardMaterial({ color: 0x4a3b22, roughness: 0.6, metalness: 0.7 });
+
+            // 1. Caja de derivación metálica fijada al muro
+            const junctionBox = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.08), matMetalDark);
+            junctionBox.position.set(0, 0, 0.04);
+            grp.add(junctionBox);
+
+            // 2. Brazo metálico en escuadra proyectado hacia el pasillo
+            const armOut = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 6), matMetalDark);
+            armOut.rotation.x = Math.PI / 2;
+            armOut.position.set(0, 0, 0.20);
+            grp.add(armOut);
+
+            const armDown = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25, 6), matMetalDark);
+            armDown.position.set(0, -0.12, 0.37);
+            grp.add(armDown);
+
+            // 3. Campana / Pantalla industrial
+            const hood = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.12, 10, 1, true), matMetalDark);
+            hood.position.set(0, -0.22, 0.37);
+            grp.add(hood);
+
+            // 4. Casquillo
+            const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.08, 8), matBrass);
+            socket.position.set(0, -0.25, 0.37);
             grp.add(socket);
 
-            // Ampolleta / Bombilla de cristal
+            // 5. Jaula de varillas protectoras
+            const cageMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.4 });
+            for (let i = 0; i < 4; i++) {
+                const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.22, 4), cageMat);
+                const angle = (i * Math.PI) / 2;
+                wire.position.set(Math.cos(angle) * 0.1, -0.34, 0.37 + Math.sin(angle) * 0.1);
+                grp.add(wire);
+            }
+            const cageRing = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.008, 4, 12), cageMat);
+            cageRing.rotation.x = Math.PI / 2;
+            cageRing.position.set(0, -0.44, 0.37);
+            grp.add(cageRing);
+
+            // 6. Ampolleta / Bombilla
             const bulbMat = new THREE.MeshStandardMaterial({
-                color: isBroken ? 0x1c1c1c : 0xffea9f,
-                emissive: isBroken ? 0x000000 : 0xff9900,
-                emissiveIntensity: isBroken ? 0 : 0.6,
+                color: isBroken ? 0x222222 : 0xffe299,
+                emissive: isBroken ? 0x000000 : 0xff8800,
+                emissiveIntensity: isBroken ? 0 : 0.9,
                 roughness: isBroken ? 0.9 : 0.2,
                 transparent: true,
-                opacity: isBroken ? 0.9 : 0.85
+                opacity: isBroken ? 0.8 : 0.9
             });
-            const bulbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), bulbMat);
-            bulbMesh.position.set(0, ceilingY - 1.3, 0);
+            const bulbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), bulbMat);
+            bulbMesh.position.set(0, -0.32, 0.37);
             grp.add(bulbMesh);
 
-            // Luz puntual (mantenida en escena con intensity=0 si rota para no recompilar shaders)
-            const baseIntensity = 0.8 + Math.random() * 0.7;
-            const light = new THREE.PointLight(0xffb84d, isBroken ? 0 : baseIntensity, 7.5);
-            light.position.set(0, ceilingY - 1.35, 0);
+            // 7. Luz puntual cálida
+            const baseIntensity = isBroken ? 0 : (0.9 + Math.random() * 0.6);
+            const light = new THREE.PointLight(0xffa233, isBroken ? 0 : baseIntensity, 8.0);
+            light.position.set(0, -0.34, 0.37);
             grp.add(light);
 
-            grp.position.set(posX, 0, posZ);
-
             grp.userData = {
-                type: 'ceiling_bulb',
+                type: 'wall_lamp',
                 isBroken: isBroken,
                 baseIntensity: baseIntensity,
-                flickerType: Math.floor(Math.random() * 3), // 0: zumbido leve, 1: chispazo errático, 2: casi apagada con ráfagas
-                flickerSpeed: 8 + Math.random() * 18,
+                flickerType: Math.floor(Math.random() * 3), // 0: zumbido analógico, 1: chispazo micro-jitter, 2: pulso tenue
+                flickerSpeed: 6 + Math.random() * 12,
                 flickerOffset: Math.random() * 60,
-                canExplode: (!isBroken && Math.random() < 0.28), // 28% de las funcionales explotan como jumpscare
-                hasExploded: false,
                 light: light,
                 bulbMesh: bulbMesh
             };
 
             scene.add(grp);
-            ceilingBulbs.push(grp);
+            wallLights.push(grp);
+            walls.push(grp);
         }
 
-        function updateCeilingBulbs(timeSec) {
-            for (let i = 0; i < ceilingBulbs.length; i++) {
-                const b = ceilingBulbs[i];
-                const d = b.userData;
-                if (d.isBroken || d.hasExploded) continue;
+        function buildCorridorCablesAndLamps(grid, floorIdx) {
+            if (!grid) return;
+            const baseY = floorIdx * FLOOR_HEIGHT;
+            const cableY = baseY + 3.4;
 
-                // Chequeo de Jumpscare (Explosión al pasar cerca del jugador)
-                if (d.canExplode && !d.hasExploded) {
-                    const bulbWorldPos = new THREE.Vector3();
-                    b.getWorldPosition(bulbWorldPos);
-                    const distToPlayer = player.position.distanceTo(bulbWorldPos);
+            const cablesX = [];
+            const cablesZ = [];
+            const lampCandidates = [];
 
-                    if (distToPlayer < 3.0) {
-                        d.hasExploded = true;
-                        playSound('bulb_pop');
-
-                        // Destello violento inicial
-                        d.light.intensity = 7.0;
-                        d.bulbMesh.material.emissive.setHex(0xffffff);
-                        d.bulbMesh.material.emissiveIntensity = 2.0;
-
-                        // Temblor jumpscare en la cámara si está muy cerca
-                        camera.rotation.z += (Math.random() - 0.5) * 0.05;
-
-                        // Apagar definitivamente tras 70ms
-                        setTimeout(() => {
-                            d.light.intensity = 0;
-                            d.bulbMesh.material.color.setHex(0x111111);
-                            d.bulbMesh.material.emissive.setHex(0x000000);
-                            d.bulbMesh.material.emissiveIntensity = 0;
-                        }, 70);
-
-                        continue;
+            for (let x = 1; x < mazeSize - 1; x++) {
+                for (let z = 1; z < mazeSize - 1; z++) {
+                    if (staircaseData && x === staircaseData.x && (z === staircaseData.zStart || z === staircaseData.zEnd)) continue;
+                    if (grid[x][z] === 0) {
+                        // Pasillo: revisar muros adyacentes para colocar cables
+                        if (z > 0 && grid[x][z - 1] === 1) {
+                            cablesX.push({ x: x * WALL_SIZE, y: cableY, z: z * WALL_SIZE - WALL_SIZE / 2 + 0.035 });
+                            lampCandidates.push({ x: x, z: z, dir: 'N' });
+                        }
+                        if (z < mazeSize - 1 && grid[x][z + 1] === 1) {
+                            cablesX.push({ x: x * WALL_SIZE, y: cableY, z: z * WALL_SIZE + WALL_SIZE / 2 - 0.035 });
+                            lampCandidates.push({ x: x, z: z, dir: 'S' });
+                        }
+                        if (x > 0 && grid[x - 1][z] === 1) {
+                            cablesZ.push({ x: x * WALL_SIZE - WALL_SIZE / 2 + 0.035, y: cableY, z: z * WALL_SIZE });
+                            lampCandidates.push({ x: x, z: z, dir: 'W' });
+                        }
+                        if (x < mazeSize - 1 && grid[x + 1][z] === 1) {
+                            cablesZ.push({ x: x * WALL_SIZE + WALL_SIZE / 2 - 0.035, y: cableY, z: z * WALL_SIZE });
+                            lampCandidates.push({ x: x, z: z, dir: 'E' });
+                        }
                     }
                 }
+            }
 
-                // Dinámica de Parpadeo Variable
+            const matCable = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.85, metalness: 0.5 });
+            const dummy = new THREE.Object3D();
+
+            // 1. InstancedMesh para tendido de cables horizontales en eje X
+            if (cablesX.length > 0) {
+                const geoX = new THREE.BoxGeometry(WALL_SIZE, 0.045, 0.045);
+                const instX = new THREE.InstancedMesh(geoX, matCable, cablesX.length);
+                for (let i = 0; i < cablesX.length; i++) {
+                    dummy.position.set(cablesX[i].x, cablesX[i].y, cablesX[i].z);
+                    dummy.rotation.set(0, 0, 0);
+                    dummy.updateMatrix();
+                    instX.setMatrixAt(i, dummy.matrix);
+                }
+                instX.instanceMatrix.needsUpdate = true;
+                scene.add(instX);
+                walls.push(instX);
+            }
+
+            // 2. InstancedMesh para tendido de cables horizontales en eje Z
+            if (cablesZ.length > 0) {
+                const geoZ = new THREE.BoxGeometry(0.045, 0.045, WALL_SIZE);
+                const instZ = new THREE.InstancedMesh(geoZ, matCable, cablesZ.length);
+                for (let i = 0; i < cablesZ.length; i++) {
+                    dummy.position.set(cablesZ[i].x, cablesZ[i].y, cablesZ[i].z);
+                    dummy.rotation.set(0, 0, 0);
+                    dummy.updateMatrix();
+                    instZ.setMatrixAt(i, dummy.matrix);
+                }
+                instZ.instanceMatrix.needsUpdate = true;
+                scene.add(instZ);
+                walls.push(instZ);
+            }
+
+            // 3. Selección y montaje de lámparas de pared en ubicaciones estratégicas
+            if (lampCandidates.length > 0) {
+                lampCandidates.sort(() => Math.random() - 0.5);
+                const targetCount = Math.min(7, Math.max(4, Math.floor(lampCandidates.length * 0.08)));
+                const chosen = [];
+                for (let cand of lampCandidates) {
+                    if (chosen.length >= targetCount) break;
+                    const tooClose = chosen.some(c => (Math.abs(c.x - cand.x) + Math.abs(c.z - cand.z)) < 3);
+                    if (!tooClose) {
+                        chosen.push(cand);
+                        createWallLamp(cand.x, cand.z, cand.dir, floorIdx);
+                    }
+                }
+            }
+        }
+
+        function updateWallLights(timeSec) {
+            for (let i = 0; i < wallLights.length; i++) {
+                const b = wallLights[i];
+                const d = b.userData;
+                if (!d || d.isBroken) continue;
+
                 let intensity = d.baseIntensity;
                 if (d.flickerType === 0) {
-                    // Tipo 0: Parpadeo sutil con zumbido
+                    // Tipo 0: Ondulación analógica suave (voltaje fluctuante)
                     const wave = Math.sin(timeSec * d.flickerSpeed + d.flickerOffset);
-                    intensity = d.baseIntensity * (0.85 + wave * 0.18);
+                    intensity = d.baseIntensity * (0.86 + wave * 0.16);
                 } else if (d.flickerType === 1) {
-                    // Tipo 1: Chispazos rápidos con falsos contactos
+                    // Tipo 1: Chispazos rápidos con micro-caídas sutiles
                     const wave = Math.sin(timeSec * d.flickerSpeed + d.flickerOffset);
-                    const glitch = (wave > 0.05) && (Math.random() > 0.1);
-                    intensity = glitch ? (d.baseIntensity * (0.9 + Math.random() * 0.3)) : 0.05;
+                    const dip = (wave < -0.6) && (Math.random() > 0.4);
+                    intensity = dip ? (d.baseIntensity * 0.3) : (d.baseIntensity * (0.92 + (Math.random() - 0.5) * 0.15));
                 } else {
-                    // Tipo 2: Oscuridad intermitente (períodos apagada y ráfagas súbitas)
-                    const cycle = (timeSec * 1.5 + d.flickerOffset) % 6;
-                    if (cycle < 1.4) {
-                        intensity = (Math.random() > 0.35) ? (d.baseIntensity * 1.3) : 0.04;
+                    // Tipo 2: Ciclo pausado de filamento viejo
+                    const cycle = (timeSec * 0.9 + d.flickerOffset) % 7.0;
+                    if (cycle < 1.6) {
+                        intensity = (Math.random() > 0.3) ? (d.baseIntensity * 1.15) : (d.baseIntensity * 0.4);
                     } else {
-                        intensity = 0.02;
+                        intensity = d.baseIntensity * 0.88;
                     }
                 }
 
                 d.light.intensity = intensity;
-                d.bulbMesh.material.emissiveIntensity = (intensity > 0.15) ? 0.6 : 0.05;
+                d.bulbMesh.material.emissiveIntensity = (intensity / d.baseIntensity) * 0.85;
             }
+        }
+
+        function updateCeilingBulbs(timeSec) {
+            updateWallLights(timeSec);
         }
 
         // --- MODELADO DE ESCALERA INDUSTRIAL METÁLICA ---
@@ -2236,10 +2322,10 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
         function createMonsterMesh() {
             const grp = new THREE.Group();
 
-            const matDarkSkin = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.9, metalness: 0.3 });
-            const matBone = new THREE.MeshStandardMaterial({ color: 0x221c16, roughness: 0.7 });
+            const matDarkSkin = new THREE.MeshStandardMaterial({ color: 0x4e545c, roughness: 0.85, metalness: 0.15 });
+            const matBone = new THREE.MeshStandardMaterial({ color: 0x948b7c, roughness: 0.6 });
             const matEyes = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const matHeart = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
+            const matHeart = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
 
             // 1. Pelvis / Base del torso
             const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.3), matDarkSkin);
@@ -2371,7 +2457,7 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             grp.add(legR);
 
             // Luz roja espectral que proyecta silueta en el suelo
-            const monsterLight = new THREE.PointLight(0xff0000, 1.3, 6);
+            const monsterLight = new THREE.PointLight(0xff1800, 1.8, 7.5);
             monsterLight.position.set(0, 1.4, 0.3);
             grp.add(monsterLight);
 
@@ -2464,28 +2550,62 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
         function checkMonsterCollision(pos) {
             const f = (pos.y >= (FLOOR_HEIGHT * 0.5) && numFloors > 1) ? 1 : 0;
-            const radius = 0.45;
-            const testPoints = [
-                { x: pos.x, z: pos.z },
-                { x: pos.x + radius, z: pos.z },
-                { x: pos.x - radius, z: pos.z },
-                { x: pos.x, z: pos.z + radius },
-                { x: pos.x, z: pos.z - radius }
-            ];
+            const grid = (numFloors > 1) ? mazeGrid[f] : mazeGrid;
+            if (!grid) return false;
 
-            for (let p of testPoints) {
-                const gx = Math.round(p.x / WALL_SIZE);
-                const gz = Math.round(p.z / WALL_SIZE);
-                if (gx < 0 || gx >= mazeSize || gz < 0 || gz >= mazeSize) return true;
+            const radius = 0.55;
+            const centerCellX = Math.round(pos.x / WALL_SIZE);
+            const centerCellZ = Math.round(pos.z / WALL_SIZE);
 
-                if (staircaseData && gx === staircaseData.x && (gz === staircaseData.zStart || gz === staircaseData.zEnd)) {
-                    continue;
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    const cx = centerCellX + dx;
+                    const cz = centerCellZ + dz;
+                    if (cx < 0 || cx >= mazeSize || cz < 0 || cz >= mazeSize) return true;
+
+                    if (staircaseData && cx === staircaseData.x && (cz === staircaseData.zStart || cz === staircaseData.zEnd)) {
+                        continue;
+                    }
+
+                    if (grid[cx] && grid[cx][cz] === 1) {
+                        const bMinX = cx * WALL_SIZE - WALL_SIZE / 2;
+                        const bMaxX = cx * WALL_SIZE + WALL_SIZE / 2;
+                        const bMinZ = cz * WALL_SIZE - WALL_SIZE / 2;
+                        const bMaxZ = cz * WALL_SIZE + WALL_SIZE / 2;
+
+                        const clampedX = Math.max(bMinX, Math.min(pos.x, bMaxX));
+                        const clampedZ = Math.max(bMinZ, Math.min(pos.z, bMaxZ));
+
+                        const diffX = pos.x - clampedX;
+                        const diffZ = pos.z - clampedZ;
+                        if ((diffX * diffX + diffZ * diffZ) < (radius * radius)) {
+                            return true;
+                        }
+                    }
                 }
-
-                const grid = (numFloors > 1) ? mazeGrid[f] : mazeGrid;
-                if (grid && grid[gx] && grid[gx][gz] === 1) return true;
             }
             return false;
+        }
+
+        function hasDirectLineOfSight(posA, posB, floorIdx) {
+            const grid = (numFloors > 1) ? mazeGrid[floorIdx] : mazeGrid;
+            if (!grid) return false;
+            const dx = posB.x - posA.x;
+            const dz = posB.z - posA.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > 25) return false;
+            const steps = Math.ceil(dist / 0.5);
+            for (let s = 1; s < steps; s++) {
+                const t = s / steps;
+                const testX = posA.x + dx * t;
+                const testZ = posA.z + dz * t;
+                const gx = Math.round(testX / WALL_SIZE);
+                const gz = Math.round(testZ / WALL_SIZE);
+                if (gx < 0 || gx >= mazeSize || gz < 0 || gz >= mazeSize) return false;
+                if (staircaseData && gx === staircaseData.x && (gz === staircaseData.zStart || gz === staircaseData.zEnd)) continue;
+                if (grid[gx] && grid[gx][gz] === 1) return false;
+            }
+            return true;
         }
 
         function checkWallCollision(pos) {
@@ -2650,40 +2770,6 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                 osc.stop(now + 0.3);
                 }
 
-                else if(type === 'bulb_pop') {
-                    // Chispa eléctrica súbita
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(1400, now);
-                    osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
-                    gain.gain.setValueAtTime(0.35, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-                    osc.start(now);
-                    osc.stop(now + 0.14);
-
-                    // Ruido blanco de cristal estallando
-                    try {
-                        const bufferSize = Math.floor(audioCtx.sampleRate * 0.18);
-                        const noiseBuf = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                        const data = noiseBuf.getChannelData(0);
-                        for(let i=0; i<bufferSize; i++) {
-                            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
-                        }
-                        const noiseSource = audioCtx.createBufferSource();
-                        noiseSource.buffer = noiseBuf;
-                        const filter = audioCtx.createBiquadFilter();
-                        filter.type = 'highpass';
-                        filter.frequency.value = 1600;
-                        const noiseGain = audioCtx.createGain();
-                        noiseGain.gain.setValueAtTime(0.28, now);
-                        noiseGain.gain.exponentialRampToValueAtTime(0.005, now + 0.18);
-
-                        noiseSource.connect(filter);
-                        filter.connect(noiseGain);
-                        if (masterFilter) noiseGain.connect(masterFilter);
-                        else noiseGain.connect(audioCtx.destination);
-                        noiseSource.start(now);
-                    } catch(e){}
-                }
                 else if(type === 'unlock') {
                 // Sonido metálico seco (Girar llave)
                 osc.type = 'square';
@@ -2915,18 +3001,12 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
             let distToMonster = 999;
             monsters.forEach(m => {
 
-                // --- NUEVO: REVISAR SI EL MONSTRUO ESTÁ ATURDIDO ---
-                // Si tiene un tiempo de aturdimiento y ese tiempo no ha pasado todavía...
+                // --- REVISAR SI EL MONSTRUO ESTÁ ATURDIDO ---
                 if (m.userData.stunnedUntil && performance.now() < m.userData.stunnedUntil) {
-                    // Efecto visual: Vibrar/Temblar en el sitio
                     m.rotation.z = (Math.random() - 0.5) * 0.5;
-                    m.children[0].material.color.setHex(0xffffff); // Se pone blanco del susto (opcional)
-                    return; // ¡IMPORTANTE! Esto evita que ejecute el código de moverse y atacar
-                } else {
-                    // Si ya pasó el susto, vuelve a la normalidad
-                    m.children[0].material.color.setHex(0x000000); // Vuelve a negro
+                    return;
                 }
-                // ---------------------------------------------------
+                // ---------------------------------------------
 
                 const d = player.position.distanceTo(m.position);
                 if(d < distToMonster) distToMonster = d;
@@ -3146,6 +3226,33 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                     return; 
                 }
 
+                // --- CÁLCULO DE SUELO REAL PARA QUE EL MONSTRUO NO LEVITE ---
+                let groundY = (m.userData.floor || 0) * FLOOR_HEIGHT;
+                if (numFloors > 1 && staircaseData) {
+                    const sPosX = staircaseData.x * WALL_SIZE;
+                    const minZ = Math.min(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE - (WALL_SIZE * 0.45);
+                    const maxZ = Math.max(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE + (WALL_SIZE * 0.45);
+                    const inStairX = Math.abs(m.position.x - sPosX) < (WALL_SIZE * 0.45);
+                    const inStairZ = (m.position.z >= minZ && m.position.z <= maxZ);
+
+                    if (inStairX && inStairZ) {
+                        const prog = (m.position.z - minZ) / (maxZ - minZ);
+                        groundY = THREE.MathUtils.clamp(prog * FLOOR_HEIGHT, 0, FLOOR_HEIGHT);
+                        m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
+                    } else {
+                        groundY = (m.position.y >= FLOOR_HEIGHT * 0.5) ? FLOOR_HEIGHT : 0.0;
+                        m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
+                    }
+                } else {
+                    groundY = 0.0;
+                    m.userData.floor = 0;
+                }
+
+                // Pies firmemente sobre el suelo con sutil paso biomecánico
+                const footStepBob = Math.abs(Math.sin(timeSec * 4 + index)) * 0.06;
+                m.position.y = groundY + footStepBob; 
+                m.rotation.z = swayAmount; 
+
                 // C. Lógica de navegación
                 if (distToPlayer < 25) { 
                     if (!m.userData.lastPathCalc || nowTime - m.userData.lastPathCalc > 400) {
@@ -3163,14 +3270,34 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
 
                         const distToNode = new THREE.Vector3(m.position.x, m.position.y, m.position.z)
                                            .distanceTo(targetWorldPos);
-                        if (distToNode < 1.2) { 
+                        if (distToNode < 0.8) { 
                             m.userData.path.shift();
+                            if (m.userData.path.length > 0) {
+                                const nextNode = m.userData.path[0];
+                                const nextY = (nextNode.f || 0) * FLOOR_HEIGHT;
+                                targetWorldPos = new THREE.Vector3(nextNode.x * WALL_SIZE, nextY, nextNode.z * WALL_SIZE);
+                            }
                         }
                     }
 
-                    const destination = targetWorldPos ? targetWorldPos : player.position;
-                    const desiredDir = new THREE.Vector3().subVectors(destination, m.position).normalize();
-                    finalMoveDir.add(desiredDir); 
+                    if (!targetWorldPos) {
+                        const monsterFloor = m.userData.floor || 0;
+                        const playerFloor = (player.position.y >= FLOOR_HEIGHT * 0.5 && numFloors > 1) ? 1 : 0;
+                        if (monsterFloor === playerFloor && hasDirectLineOfSight(m.position, player.position, monsterFloor)) {
+                            targetWorldPos = player.position.clone();
+                        } else {
+                            const curCellX = Math.round(m.position.x / WALL_SIZE);
+                            const curCellZ = Math.round(m.position.z / WALL_SIZE);
+                            targetWorldPos = new THREE.Vector3(curCellX * WALL_SIZE, groundY, curCellZ * WALL_SIZE);
+                        }
+                    }
+
+                    const desiredDir = new THREE.Vector3().subVectors(targetWorldPos, m.position);
+                    desiredDir.y = 0;
+                    if (desiredDir.lengthSq() > 0.001) {
+                        desiredDir.normalize();
+                        finalMoveDir.add(desiredDir); 
+                    }
 
                     // Evasión de obstáculos
                     collidables.forEach(obj => {
@@ -3184,52 +3311,27 @@ document.querySelectorAll('.hud-box:not(#battery-container)').forEach(el => el.c
                         }
                     });
 
-                    finalMoveDir.normalize();
+                    if (finalMoveDir.lengthSq() > 0.001) {
+                        finalMoveDir.normalize();
 
-                    // Aplicar rotación
-                    const dummy = new THREE.Object3D();
-                    dummy.position.copy(m.position);
-                    dummy.lookAt(m.position.x + finalMoveDir.x, m.position.y, m.position.z + finalMoveDir.z);
-                    m.quaternion.slerp(dummy.quaternion, 0.08); 
-
-                    // --- CÁLCULO DE SUELO REAL PARA QUE EL MONSTRUO NO LEVITE ---
-                    let groundY = (m.userData.floor || 0) * FLOOR_HEIGHT;
-                    if (numFloors > 1 && staircaseData) {
-                        const sPosX = staircaseData.x * WALL_SIZE;
-                        const minZ = Math.min(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE - (WALL_SIZE * 0.45);
-                        const maxZ = Math.max(staircaseData.zStart, staircaseData.zEnd) * WALL_SIZE + (WALL_SIZE * 0.45);
-                        const inStairX = Math.abs(m.position.x - sPosX) < (WALL_SIZE * 0.45);
-                        const inStairZ = (m.position.z >= minZ && m.position.z <= maxZ);
-
-                        if (inStairX && inStairZ) {
-                            const prog = (m.position.z - minZ) / (maxZ - minZ);
-                            groundY = THREE.MathUtils.clamp(prog * FLOOR_HEIGHT, 0, FLOOR_HEIGHT);
-                            m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
-                        } else {
-                            groundY = (m.position.y >= FLOOR_HEIGHT * 0.5) ? FLOOR_HEIGHT : 0.0;
-                            m.userData.floor = (groundY >= FLOOR_HEIGHT * 0.5) ? 1 : 0;
-                        }
-                    } else {
-                        groundY = 0.0;
-                        m.userData.floor = 0;
+                        // Aplicar rotación
+                        const dummy = new THREE.Object3D();
+                        dummy.position.copy(m.position);
+                        dummy.lookAt(m.position.x + finalMoveDir.x, m.position.y, m.position.z + finalMoveDir.z);
+                        m.quaternion.slerp(dummy.quaternion, 0.08); 
                     }
 
-                    // Pies firmemente sobre el suelo con sutil paso biomecánico
-                    const footStepBob = Math.abs(Math.sin(timeSec * 4 + index)) * 0.06;
-                    m.position.y = groundY + footStepBob; 
-                    m.rotation.z = swayAmount; 
-
-                    if (distToPlayer > 1.2) {
+                    if (distToPlayer > 1.2 && finalMoveDir.lengthSq() > 0.001) {
                         const moveDist = 3.5 * dt;
                         const moveDelta = finalMoveDir.clone().multiplyScalar(moveDist);
 
-                        // 1. Deslizamiento en X con colisión de pared
+                        // 1. Deslizamiento en X con colisión de pared AABB continua
                         const nextX = { x: m.position.x + moveDelta.x, y: m.position.y, z: m.position.z };
                         if (!checkMonsterCollision(nextX)) {
                             m.position.x += moveDelta.x;
                         }
 
-                        // 2. Deslizamiento en Z con colisión de pared
+                        // 2. Deslizamiento en Z con colisión de pared AABB continua
                         const nextZ = { x: m.position.x, y: m.position.y, z: m.position.z + moveDelta.z };
                         if (!checkMonsterCollision(nextZ)) {
                             m.position.z += moveDelta.z;
